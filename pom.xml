@@ -866,5 +866,11 @@
 				</dependency>
 			</dependencies>
 		</profile>
+        <profile>
+            <id>district-report</id>
+            <properties>
+                <district.report.generation.enabled>district-report</district.report.generation.enabled>
+            </properties>
+        </profile>
 	</profiles>
 </project>
