@@ -1,5 +1,6 @@
 package org.opensrp.web.controller;
 
+import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -22,7 +23,6 @@ import org.opensrp.service.PractionerDetailsService;
 import org.opensrp.web.config.security.filter.CrossSiteScriptingPreventionFilter;
 import org.opensrp.web.rest.BaseResourceTest;
 import org.springframework.test.web.server.result.MockMvcResultMatchers;
-import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 public class MealthUserControllerTest extends BaseResourceTest<PractitionerLocation> {
@@ -31,12 +31,10 @@ public class MealthUserControllerTest extends BaseResourceTest<PractitionerLocat
 	
 	private PractionerDetailsService practionerDetailsService;
 	
-	private MockMvc mockMvc;
-	
 	@Before
 	public void setUp() {
 		MockitoAnnotations.initMocks(this);
-		mockMvc = MockMvcBuilders.webAppContextSetup(webApplicationContext).apply(springSecurity())
+		MockMvcBuilders.webAppContextSetup(webApplicationContext).apply(springSecurity())
 		        .addFilter(new CrossSiteScriptingPreventionFilter(), "/*").build();
 		practionerDetailsService = mock(PractionerDetailsService.class);
 		MhealthUserController mhealthUserController = webApplicationContext.getBean(MhealthUserController.class);
@@ -45,13 +43,13 @@ public class MealthUserControllerTest extends BaseResourceTest<PractitionerLocat
 	}
 	
 	@Test
-	public void testGetPractitionerLocationTree() throws Exception {
+	public void testGetPractitionerLocationTreeWihtStatusOK() throws Exception {
 		
 		when(practionerDetailsService.findPractitionerDetailsByUsername("admin"))
 		        .thenReturn(createPractitionerDetailsData());
 		PractitionerDetails practitionerDetails = practionerDetailsService.findPractitionerDetailsByUsername("admin");
 		verify(practionerDetailsService).findPractitionerDetailsByUsername("admin");
-		
+		assertEquals("admin", practitionerDetails.getFirstName());
 		when(practionerDetailsService.findPractitionerLocationsByChildGroup(2, 29, 7))
 		        .thenReturn(createPractitionerLocationData());
 		
@@ -59,15 +57,68 @@ public class MealthUserControllerTest extends BaseResourceTest<PractitionerLocat
 		    29, 7);
 		verify(practionerDetailsService).findPractitionerLocationsByChildGroup(2, 29, 7);
 		
+		assertEquals(14, practitionerLocations.size());
+		
 		JSONArray expectedResult = createResponseOfConvertLocationTreeToJSON();
 		
 		doReturn(expectedResult).when(practionerDetailsService).convertLocationTreeToJSON(ArgumentMatchers.anyList(),
 		    ArgumentMatchers.anyBoolean(), ArgumentMatchers.anyString());
 		verifyNoMoreInteractions(practionerDetailsService);
-		String actualLocationTagsString = getResponseAsString(BASE_URL + "/?username=admin", null,
+		String actualResult = getResponseAsString(BASE_URL + "/?username=admin", null,
 		    MockMvcResultMatchers.status().isOk());
+		assertEquals(expectedResult.toString(), actualResult);
 		
-		System.err.println(actualLocationTagsString);
+	}
+	
+	@Test
+	public void testGetPractitionerLocationTreeWihtStatusBadRequest() throws Exception {
+		
+		when(practionerDetailsService.findPractitionerDetailsByUsername("admin"))
+		        .thenReturn(createPractitionerDetailsData());
+		PractitionerDetails practitionerDetails = practionerDetailsService.findPractitionerDetailsByUsername("admin");
+		verify(practionerDetailsService).findPractitionerDetailsByUsername("admin");
+		assertEquals("admin", practitionerDetails.getFirstName());
+		when(practionerDetailsService.findPractitionerLocationsByChildGroup(2, 29, 7))
+		        .thenReturn(createPractitionerLocationData());
+		
+		List<PractitionerLocation> practitionerLocations = practionerDetailsService.findPractitionerLocationsByChildGroup(2,
+		    29, 7);
+		verify(practionerDetailsService).findPractitionerLocationsByChildGroup(2, 29, 7);
+		
+		assertEquals(14, practitionerLocations.size());
+		
+		JSONArray expectedResult = createResponseOfConvertLocationTreeToJSON();
+		
+		doReturn(expectedResult).when(practionerDetailsService).convertLocationTreeToJSON(ArgumentMatchers.anyList(),
+		    ArgumentMatchers.anyBoolean(), ArgumentMatchers.anyString());
+		verifyNoMoreInteractions(practionerDetailsService);
+		getResponseAsString(BASE_URL, null, MockMvcResultMatchers.status().isBadRequest());
+		
+	}
+	
+	@Test
+	public void testGetPractitionerLocationTreeWihtStatusInternalServerError() throws Exception {
+		
+		when(practionerDetailsService.findPractitionerDetailsByUsername("admin"))
+		        .thenReturn(createPractitionerDetailsData());
+		PractitionerDetails practitionerDetails = practionerDetailsService.findPractitionerDetailsByUsername("admin");
+		verify(practionerDetailsService).findPractitionerDetailsByUsername("admin");
+		assertEquals("admin", practitionerDetails.getFirstName());
+		when(practionerDetailsService.findPractitionerLocationsByChildGroup(2, 29, 7))
+		        .thenReturn(createPractitionerLocationData());
+		
+		List<PractitionerLocation> practitionerLocations = practionerDetailsService.findPractitionerLocationsByChildGroup(2,
+		    29, 7);
+		verify(practionerDetailsService).findPractitionerLocationsByChildGroup(2, 29, 7);
+		
+		assertEquals(14, practitionerLocations.size());
+		
+		JSONArray expectedResult = createResponseOfConvertLocationTreeToJSON();
+		
+		doReturn(expectedResult).when(practionerDetailsService).convertLocationTreeToJSON(ArgumentMatchers.anyList(),
+		    ArgumentMatchers.anyBoolean(), ArgumentMatchers.anyString());
+		verifyNoMoreInteractions(practionerDetailsService);
+		getResponseAsString(BASE_URL + "/?username=dd", null, MockMvcResultMatchers.status().isInternalServerError());
 		
 	}
 	
