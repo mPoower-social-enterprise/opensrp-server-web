@@ -3,6 +3,8 @@ package org.opensrp.web.controller;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 
 import java.util.ArrayList;
@@ -15,6 +17,7 @@ import org.junit.Test;
 import org.mockito.ArgumentMatchers;
 import org.mockito.MockitoAnnotations;
 import org.opensrp.domain.PractitionerLocation;
+import org.opensrp.domain.postgres.PractitionerDetails;
 import org.opensrp.service.PractionerDetailsService;
 import org.opensrp.web.config.security.filter.CrossSiteScriptingPreventionFilter;
 import org.opensrp.web.rest.BaseResourceTest;
@@ -44,16 +47,44 @@ public class MealthUserControllerTest extends BaseResourceTest<PractitionerLocat
 	@Test
 	public void testGetPractitionerLocationTree() throws Exception {
 		
+		when(practionerDetailsService.findPractitionerDetailsByUsername("admin"))
+		        .thenReturn(createPractitionerDetailsData());
+		PractitionerDetails practitionerDetails = practionerDetailsService.findPractitionerDetailsByUsername("admin");
+		verify(practionerDetailsService).findPractitionerDetailsByUsername("admin");
+		
+		when(practionerDetailsService.findPractitionerLocationsByChildGroup(2, 29, 7))
+		        .thenReturn(createPractitionerLocationData());
+		
+		List<PractitionerLocation> practitionerLocations = practionerDetailsService.findPractitionerLocationsByChildGroup(2,
+		    29, 7);
+		verify(practionerDetailsService).findPractitionerLocationsByChildGroup(2, 29, 7);
+		
 		JSONArray expectedResult = createResponseOfConvertLocationTreeToJSON();
 		
 		doReturn(expectedResult).when(practionerDetailsService).convertLocationTreeToJSON(ArgumentMatchers.anyList(),
 		    ArgumentMatchers.anyBoolean(), ArgumentMatchers.anyString());
-		
-		String actualLocationTagsString = getResponseAsString(BASE_URL + "/?username=testsk", null,
+		verifyNoMoreInteractions(practionerDetailsService);
+		String actualLocationTagsString = getResponseAsString(BASE_URL + "/?username=admin", null,
 		    MockMvcResultMatchers.status().isOk());
-		verify(practionerDetailsService).findPractitionerDetailsByUsername("testsk");
-		verify(practionerDetailsService).findPractitionerLocationsByChildGroup(2, 29, 7);
+		
 		System.err.println(actualLocationTagsString);
+		
+	}
+	
+	private PractitionerDetails createPractitionerDetailsData() {
+		PractitionerDetails practitionerDetails = new PractitionerDetails();
+		practitionerDetails.setAppVersion("1.3.1");
+		practitionerDetails.setCreatedDate(null);
+		practitionerDetails.setCreator(1);
+		practitionerDetails.setEmail("admin@gmail.com");
+		practitionerDetails.setEnabled(true);
+		practitionerDetails.setEnableSimPrint(true);
+		practitionerDetails.setFirstName("admin");
+		practitionerDetails.setGender("male");
+		practitionerDetails.setId(1);
+		practitionerDetails.setSsNo("1");
+		practitionerDetails.setPractitionerId(2);
+		return practitionerDetails;
 		
 	}
 	
