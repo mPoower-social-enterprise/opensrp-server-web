@@ -245,7 +245,9 @@ public class MhealthEventResource extends RestResource<Event> {
 		
 		//PII Data masking 
 		//TO DO research on ways to improve this
-		
+		String field = "baseEntityId";
+		List<String> ids = new ArrayList<String>();
+		clients = clientService.findByFieldValue(field, ids, postfix);
 		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 		User user = RestUtils.currentUser(authentication);
 		
