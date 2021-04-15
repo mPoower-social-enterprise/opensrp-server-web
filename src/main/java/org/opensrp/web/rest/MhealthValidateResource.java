@@ -81,7 +81,7 @@ public class MhealthValidateResource {
 				for (String clientId : clientIds) {
 					try {
 						
-						Integer getClientId = mhealthClientService.findClientIdByBaseEntityId(clientId, postfix);
+						Long getClientId = mhealthClientService.findClientIdByBaseEntityId(clientId, postfix);
 						if (getClientId == null || getClientId == 0) {
 							missingClientIds.add(clientId);
 						}
@@ -98,7 +98,7 @@ public class MhealthValidateResource {
 				    new TypeToken<ArrayList<String>>() {}.getType());
 				for (String eventId : eventIds) {
 					try {
-						Integer getEventId = mhealthEventService.findEventIdByFormSubmissionId(eventId, postfix);
+						Long getEventId = mhealthEventService.findEventIdByFormSubmissionId(eventId, postfix);
 						if (getEventId == null || getEventId == 0) {
 							missingEventIds.add(eventId);
 						}

@@ -1,7 +1,6 @@
 package org.opensrp.web.rest;
 
 import static java.text.MessageFormat.format;
-import static org.opensrp.common.AllConstants.CLIENTS_FETCH_BATCH_SIZE;
 import static org.opensrp.common.AllConstants.BaseEntity.BASE_ENTITY_ID;
 import static org.opensrp.common.AllConstants.BaseEntity.LAST_UPDATE;
 import static org.opensrp.common.AllConstants.Event.ENTITY_TYPE;
@@ -229,12 +228,12 @@ public class MhealthEventResource extends RestResource<Event> {
 					clientIds.add(event.getBaseEntityId());
 				}
 			}
-			for (int i = 0; i < clientIds.size(); i = i + CLIENTS_FETCH_BATCH_SIZE) {
+			/*for (int i = 0; i < clientIds.size(); i = i + CLIENTS_FETCH_BATCH_SIZE) {
 				int end = Math.min(i + CLIENTS_FETCH_BATCH_SIZE, clientIds.size());
 				clients.addAll(clientService.findByFieldValue(BASE_ENTITY_ID, clientIds.subList(i, end)));
 			}
 			logger.info("fetching clients took: " + (System.currentTimeMillis() - startTime));
-			
+			*/
 			searchMissingClients(clientIds, clients, startTime);
 			
 			/*if (returnCount) {
@@ -243,11 +242,7 @@ public class MhealthEventResource extends RestResource<Event> {
 			
 		}
 		
-		//PII Data masking 
-		//TO DO research on ways to improve this
-		String field = "baseEntityId";
-		List<String> ids = new ArrayList<String>();
-		clients = clientService.findByFieldValue(field, ids, postfix);
+		clients = mhealthClientService.findByBaseEntityIds(clientIds, postfix);
 		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 		User user = RestUtils.currentUser(authentication);
 		
