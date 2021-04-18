@@ -4,6 +4,7 @@ import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -101,6 +102,40 @@ public class MhealthEventResourceTest extends BaseSecureResourceTest<Event> {
 		verify(mhealthEventService).addorUpdateEvent(eventArgumentCaptor.capture(), anyString(), anyString(), anyString(),
 		    anyString());
 		System.err.println(eventArgumentCaptor.getAllValues());
+		assertEquals(eventArgumentCaptor.getValue().getEventType(), "Family Member Registration");
+	}
+	
+	@Test
+	public void testSaveThrowsExceptionFromClientService() throws Exception {
+		Event event = createEvent();
+		doThrow(new IllegalArgumentException()).when(mhealthClientService).addOrUpdate(any(Client.class), anyString(),
+		    anyString(), anyString());
+		
+		doReturn(event).when(mhealthEventService).addorUpdateEvent(any(Event.class), anyString(), anyString(), anyString(),
+		    anyString());
+		postRequestWithJsonContent(BASE_URL + "/add?district=12&division=123&branch=2", ADD_REQUEST_PAYLOAD,
+		    status().isCreated());
+		verify(mhealthClientService).addOrUpdate(clientArgumentCaptor.capture(), anyString(), anyString(), anyString());
+		assertEquals(clientArgumentCaptor.getValue().getFirstName(), "Test");
+		verify(mhealthEventService).addorUpdateEvent(eventArgumentCaptor.capture(), anyString(), anyString(), anyString(),
+		    anyString());
+		assertEquals(eventArgumentCaptor.getValue().getEventType(), "Family Member Registration");
+	}
+	
+	@Test
+	public void testSaveThrowsExceptionFromEventService() throws Exception {
+		Client client = createClient();
+		
+		doReturn(client).when(mhealthClientService).addOrUpdate(any(Client.class), anyString(), anyString(), anyString());
+		
+		doThrow(new IllegalArgumentException()).when(mhealthEventService).addorUpdateEvent(any(Event.class), anyString(),
+		    anyString(), anyString(), anyString());
+		postRequestWithJsonContent(BASE_URL + "/add?district=12&division=123&branch=2", ADD_REQUEST_PAYLOAD,
+		    status().isCreated());
+		verify(mhealthClientService).addOrUpdate(clientArgumentCaptor.capture(), anyString(), anyString(), anyString());
+		assertEquals(clientArgumentCaptor.getValue().getFirstName(), "Test");
+		verify(mhealthEventService).addorUpdateEvent(eventArgumentCaptor.capture(), anyString(), anyString(), anyString(),
+		    anyString());
 		assertEquals(eventArgumentCaptor.getValue().getEventType(), "Family Member Registration");
 	}
 	

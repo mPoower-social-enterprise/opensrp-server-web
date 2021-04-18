@@ -294,7 +294,7 @@ public class MhealthEventResource extends RestResource<Event> {
 				for (Event event : events) {
 					try {
 						//event = eventService.processOutOfArea(event);
-						System.out.println(event);
+						
 						mhealthEventService.addorUpdateEvent(event, RestUtils.currentUser(authentication).getUsername(),
 						    district, division, branch);
 					}
