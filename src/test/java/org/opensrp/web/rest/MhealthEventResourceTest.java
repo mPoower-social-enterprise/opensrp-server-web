@@ -2,14 +2,18 @@ package org.opensrp.web.rest;
 
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.opensrp.common.AllConstants.BaseEntity.SERVER_VERSIOIN;
+import static org.opensrp.common.AllConstants.Event.PROVIDER_ID;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.joda.time.DateTime;
@@ -24,6 +28,7 @@ import org.smartregister.domain.Client;
 import org.smartregister.domain.Event;
 import org.smartregister.utils.DateTimeTypeConverter;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
@@ -66,9 +71,7 @@ public class MhealthEventResourceTest extends BaseSecureResourceTest<Event> {
 	        + "\t\"events\": \"[{\\\"baseEntityId\\\":\\\"502f5f2d-5a06-4f71-8f8a-b19a846b9a93\\\",\\\"eventType\\\":\\\"Family Member Registration\\\",\\\"entityType\\\":\\\"ec_family\\\",\\\"eventDate\\\":\\\"2020-05-02T23:26:21.685Z\\\"}]\"\n"
 	        + "}";
 	
-	private String POST_SYNC_REQUEST = "{\n" + "\t\"providerId\": \"test\",\n" + "\t\"locationId\": \"test\",\n"
-	        + "\t\"baseEntityId\": \"test\",\n" + "\t\"serverVersion\": 15421904649873,\n" + "\t\"team\": \"test\",\n"
-	        + "\t\"teamId\": \"test\",\n" + "\t\"limit\": 5\n" + "}";
+	private String ADD_REQUEST_EMPTY_PAYLOAD = "{\n" + "\t\"client\": \"[]\",\n" + "\t\"event\": \"[]\"\n" + "}";
 	
 	public MhealthEventResourceTest() throws IOException {
 		super();
@@ -87,7 +90,7 @@ public class MhealthEventResourceTest extends BaseSecureResourceTest<Event> {
 	}
 	
 	@Test
-	public void testSave() throws Exception {
+	public void testSaveWihtStatusOK() throws Exception {
 		Client client = createClient();
 		Event event = createEvent();
 		doReturn(client).when(mhealthClientService).addOrUpdate(any(Client.class), anyString(), anyString(), anyString());
@@ -101,8 +104,21 @@ public class MhealthEventResourceTest extends BaseSecureResourceTest<Event> {
 		assertEquals(clientArgumentCaptor.getValue().getFirstName(), "Test");
 		verify(mhealthEventService).addorUpdateEvent(eventArgumentCaptor.capture(), anyString(), anyString(), anyString(),
 		    anyString());
-		System.err.println(eventArgumentCaptor.getAllValues());
+		
 		assertEquals(eventArgumentCaptor.getValue().getEventType(), "Family Member Registration");
+	}
+	
+	@Test
+	public void testSaveWihtStatusBadRequest() throws Exception {
+		Client client = createClient();
+		Event event = createEvent();
+		doReturn(client).when(mhealthClientService).addOrUpdate(any(Client.class), anyString(), anyString(), anyString());
+		doReturn(event).when(mhealthEventService).addorUpdateEvent(any(Event.class), anyString(), anyString(), anyString(),
+		    anyString());
+		
+		postRequestWithJsonContent(BASE_URL + "/add?district=12&division=123&branch=2", ADD_REQUEST_EMPTY_PAYLOAD,
+		    status().isBadRequest());
+		
 	}
 	
 	@Test
@@ -137,6 +153,74 @@ public class MhealthEventResourceTest extends BaseSecureResourceTest<Event> {
 		verify(mhealthEventService).addorUpdateEvent(eventArgumentCaptor.capture(), anyString(), anyString(), anyString(),
 		    anyString());
 		assertEquals(eventArgumentCaptor.getValue().getEventType(), "Family Member Registration");
+	}
+	
+	@Test
+	public void testGetSyncByVillageIdsStatusOK() throws Exception {
+		List<Event> expectedEvents = new ArrayList<>();
+		expectedEvents.add(createEvent());
+		List<Client> expectedClients = new ArrayList<>();
+		expectedClients.add(createClient());
+		
+		doReturn(expectedEvents).when(mhealthEventService).findByVillageIds(anyString(), anyList(), any(long.class),
+		    any(int.class), anyString());
+		doReturn(createClient()).when(mhealthClientService).findByBaseEntityId(anyString(), anyString());
+		doReturn(expectedClients).when(mhealthClientService).findByBaseEntityIds(anyList(), anyString());
+		
+		String parameter = PROVIDER_ID + "=providerId&" + SERVER_VERSIOIN
+		        + "=15421904649873&isEmptyToAdd=true&villageIds=1,27&district=23";
+		String response = getResponseAsString(BASE_URL + "/sync", parameter, status().isOk());
+		JsonNode actualObj = mapper.readTree(response);
+		verify(mhealthEventService).findByVillageIds(stringArgumentCaptor.capture(), anyList(), longArgumentCaptor.capture(),
+		    integerArgumentCaptor.capture(), stringArgumentCaptor.capture());
+		assertEquals(integerArgumentCaptor.getValue(), new Integer(25));
+		assertEquals(stringArgumentCaptor.getAllValues().get(0), PROVIDER_ID);
+		assertEquals(stringArgumentCaptor.getAllValues().get(1), "_23");
+		assertEquals(actualObj.size(), 4);
+		assertEquals(actualObj.get("clients").size(), 1);
+		assertEquals(actualObj.get("events").size(), 1);
+	}
+	
+	@Test
+	public void testGetSyncByProviderStatusOK() throws Exception {
+		List<Event> expectedEvents = new ArrayList<>();
+		expectedEvents.add(createEvent());
+		List<Client> expectedClients = new ArrayList<>();
+		expectedClients.add(createClient());
+		
+		doReturn(expectedEvents).when(mhealthEventService).findByProvider(any(long.class), anyString(), any(int.class),
+		    anyString());
+		doReturn(createClient()).when(mhealthClientService).findByBaseEntityId(anyString(), anyString());
+		doReturn(expectedClients).when(mhealthClientService).findByBaseEntityIds(anyList(), anyString());
+		
+		String parameter = PROVIDER_ID + "=providerId&" + SERVER_VERSIOIN
+		        + "=15421904649873&isEmptyToAdd=false&villageIds=1,27&district=23";
+		String response = getResponseAsString(BASE_URL + "/sync", parameter, status().isOk());
+		JsonNode actualObj = mapper.readTree(response);
+		verify(mhealthEventService).findByProvider(longArgumentCaptor.capture(), stringArgumentCaptor.capture(),
+		    integerArgumentCaptor.capture(), stringArgumentCaptor.capture());
+		assertEquals(stringArgumentCaptor.getAllValues().get(0), PROVIDER_ID);
+		assertEquals(stringArgumentCaptor.getAllValues().get(1), "_23");
+		assertEquals(actualObj.size(), 4);
+		assertEquals(actualObj.get("clients").size(), 1);
+		assertEquals(actualObj.get("events").size(), 1);
+	}
+	
+	@Test
+	public void testGetSyncWithStatusBadRequest() throws Exception {
+		List<Event> expectedEvents = new ArrayList<>();
+		expectedEvents.add(createEvent());
+		List<Client> expectedClients = new ArrayList<>();
+		expectedClients.add(createClient());
+		
+		doReturn(expectedEvents).when(mhealthEventService).findByVillageIds(anyString(), anyList(), any(long.class),
+		    any(int.class), anyString());
+		doReturn(createClient()).when(mhealthClientService).findByBaseEntityId(anyString(), anyString());
+		doReturn(expectedClients).when(mhealthClientService).findByBaseEntityIds(anyList(), anyString());
+		
+		String parameter = SERVER_VERSIOIN + "=15421904649873&isEmptyToAdd=true&district=23";
+		getResponseAsString(BASE_URL + "/sync", parameter, status().isBadRequest());
+		
 	}
 	
 	private Event createEvent() {

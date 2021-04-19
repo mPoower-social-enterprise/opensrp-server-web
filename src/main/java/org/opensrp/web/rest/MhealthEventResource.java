@@ -1,14 +1,7 @@
 package org.opensrp.web.rest;
 
 import static java.text.MessageFormat.format;
-import static org.opensrp.common.AllConstants.BaseEntity.BASE_ENTITY_ID;
-import static org.opensrp.common.AllConstants.Event.EVENT_TYPE;
-import static org.opensrp.common.AllConstants.Event.LOCATION_ID;
 import static org.opensrp.common.AllConstants.Event.PROVIDER_ID;
-import static org.opensrp.common.AllConstants.Event.TEAM;
-import static org.opensrp.common.AllConstants.Event.TEAM_ID;
-import static org.opensrp.web.Constants.RETURN_COUNT;
-import static org.opensrp.web.Constants.TOTAL_RECORDS;
 import static org.opensrp.web.rest.RestUtils.getIntegerFilter;
 import static org.opensrp.web.rest.RestUtils.getStringFilter;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
@@ -16,7 +9,6 @@ import static org.springframework.http.HttpStatus.CREATED;
 import static org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR;
 import static org.springframework.web.bind.annotation.RequestMethod.POST;
 
-import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -28,14 +20,11 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.joda.time.DateTime;
 import org.json.JSONObject;
-import org.opensrp.api.domain.User;
 import org.opensrp.common.AllConstants.BaseEntity;
 import org.opensrp.search.EventSearchBean;
 import org.opensrp.service.MhealthClientService;
 import org.opensrp.service.MhealthEventService;
 import org.opensrp.web.bean.EventSyncBean;
-import org.opensrp.web.config.Role;
-import org.opensrp.web.utils.MaskingUtils;
 import org.opensrp.web.utils.Utils;
 import org.smartregister.domain.Client;
 import org.smartregister.domain.Event;
@@ -47,13 +36,13 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
@@ -61,7 +50,7 @@ import com.google.gson.reflect.TypeToken;
 
 @Controller
 @RequestMapping(value = "/rest/event/mhealth")
-public class MhealthEventResource extends RestResource<Event> {
+public class MhealthEventResource {
 	
 	private static Logger logger = LogManager.getLogger(MhealthEventResource.class.toString());
 	
@@ -74,6 +63,13 @@ public class MhealthEventResource extends RestResource<Event> {
 	
 	@Value("#{opensrp['opensrp.sync.search.missing.client']}")
 	private boolean searchMissingClients;
+	
+	protected ObjectMapper objectMapper;
+	
+	@Autowired
+	public void setObjectMapper(ObjectMapper objectMapper) {
+		this.objectMapper = objectMapper;
+	};
 	
 	@Autowired
 	public MhealthEventResource(MhealthClientService mhealthClientService, MhealthEventService mhealthEventService) {
@@ -90,11 +86,6 @@ public class MhealthEventResource extends RestResource<Event> {
 		this.mhealthEventService = mhealthEventService;
 	}
 	
-	@Override
-	public Event getByUniqueId(String uniqueId) {
-		throw new IllegalStateException();
-	}
-	
 	/**
 	 * Fetch events ordered by serverVersion ascending order and return the clients associated with
 	 * the events
@@ -107,19 +98,14 @@ public class MhealthEventResource extends RestResource<Event> {
 		EventSyncBean response = new EventSyncBean();
 		try {
 			String providerId = getStringFilter(PROVIDER_ID, request);
-			String locationId = getStringFilter(LOCATION_ID, request);
-			String baseEntityId = getStringFilter(BASE_ENTITY_ID, request);
 			String serverVersion = getStringFilter(BaseEntity.SERVER_VERSIOIN, request);
-			String team = getStringFilter(TEAM, request);
-			String teamId = getStringFilter(TEAM_ID, request);
 			Integer limit = getIntegerFilter("limit", request);
-			
 			String district = getStringFilter("district", request);
 			
 			String postfix = "_" + district;
 			String villageIds = getStringFilter("villageIds", request);
 			String isEmptyToAdd = getStringFilter("isEmptyToAdd", request);
-			/*List<Long> address = new ArrayList<Long>();*/
+			
 			if (org.apache.commons.lang3.StringUtils.isBlank(isEmptyToAdd)) {
 				isEmptyToAdd = "true";
 			}
@@ -127,23 +113,15 @@ public class MhealthEventResource extends RestResource<Event> {
 			if (villageIds != null && !org.apache.commons.lang3.StringUtils.isBlank(villageIds)) {
 				
 				for (String locId : villageIds.split(",")) {
-					//address.add(Long.valueOf(locId));
 					villageIdsList.add(Long.valueOf(locId));
 				}
 			}
 			
-			boolean returnCount = Boolean.getBoolean(getStringFilter(RETURN_COUNT, request));
-			
-			if (team != null || providerId != null || locationId != null || baseEntityId != null || teamId != null) {
+			if (providerId != null || villageIdsList.size() != 0) {
 				
-				EventSyncBean eventSyncBean = sync(providerId, postfix, serverVersion, villageIdsList, limit, returnCount,
-				    isEmptyToAdd);
+				EventSyncBean eventSyncBean = sync(providerId, postfix, serverVersion, villageIdsList, limit, isEmptyToAdd);
 				
 				HttpHeaders headers = RestUtils.getJSONUTF8Headers();
-				if (returnCount) {
-					headers.add(TOTAL_RECORDS, String.valueOf(eventSyncBean.getTotalRecords()));
-				}
-				
 				return new ResponseEntity<>(objectMapper.writeValueAsString(eventSyncBean), headers, HttpStatus.OK);
 				
 			} else {
@@ -159,29 +137,8 @@ public class MhealthEventResource extends RestResource<Event> {
 		}
 	}
 	
-	private void searchMissingClients(List<String> clientIds, List<Client> clients, long startTime, String postfix) {
-		if (searchMissingClients) {
-			
-			List<String> foundClientIds = new ArrayList<>();
-			for (Client client : clients) {
-				foundClientIds.add(client.getBaseEntityId());
-			}
-			
-			boolean removed = clientIds.removeAll(foundClientIds);
-			if (removed) {
-				for (String clientId : clientIds) {
-					Client client = mhealthClientService.findByBaseEntityId(clientId, postfix);
-					if (client != null) {
-						clients.add(client);
-					}
-				}
-			}
-			logger.info("fetching missing clients took: " + (System.currentTimeMillis() - startTime));
-		}
-	}
-	
 	public EventSyncBean sync(String providerId, String postfix, String serverVersion, List<Long> villageIdsList,
-	                          Integer limit, boolean returnCount, String isEmptyToAdd) {
+	                          Integer limit, String isEmptyToAdd) {
 		Long lastSyncedServerVersion = null;
 		if (serverVersion != null) {
 			lastSyncedServerVersion = Long.parseLong(serverVersion) + 1;
@@ -193,15 +150,13 @@ public class MhealthEventResource extends RestResource<Event> {
 		
 		eventSearchBean.setBaseEntityId("");
 		eventSearchBean.setServerVersion(lastSyncedServerVersion);
-		
 		return getEventsAndClients(providerId, postfix, villageIdsList, lastSyncedServerVersion,
-		    limit == null || limit == 0 ? 25 : limit, returnCount, isEmptyToAdd);
+		    limit == null || limit == 0 ? 25 : limit, isEmptyToAdd);
 		
 	}
 	
 	private EventSyncBean getEventsAndClients(String providerId, String postfix, List<Long> villageIdsList,
-	                                          Long lastSyncedServerVersion, Integer limit, boolean returnCount,
-	                                          String isEmptyToAdd) {
+	                                          Long lastSyncedServerVersion, Integer limit, String isEmptyToAdd) {
 		List<Event> events = new ArrayList<Event>();
 		List<String> clientIds = new ArrayList<String>();
 		List<Client> clients = new ArrayList<Client>();
@@ -222,29 +177,9 @@ public class MhealthEventResource extends RestResource<Event> {
 					clientIds.add(event.getBaseEntityId());
 				}
 			}
-			/*for (int i = 0; i < clientIds.size(); i = i + CLIENTS_FETCH_BATCH_SIZE) {
-				int end = Math.min(i + CLIENTS_FETCH_BATCH_SIZE, clientIds.size());
-				clients.addAll(clientService.findByFieldValue(BASE_ENTITY_ID, clientIds.subList(i, end)));
-			}
-			logger.info("fetching clients took: " + (System.currentTimeMillis() - startTime));
-			*/
-			searchMissingClients(clientIds, clients, startTime, postfix);
-			
-			/*if (returnCount) {
-				totalRecords = eventService.countEvents(eventSearchBean);
-			}*/
-			
 		}
 		
 		clients = mhealthClientService.findByBaseEntityIds(clientIds, postfix);
-		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-		User user = RestUtils.currentUser(authentication);
-		
-		if (Utils.checkRoleIfRoleExists(user.getRoles(), Role.PII_DATA_MASK)) {
-			
-			MaskingUtils maskingUtil = new MaskingUtils();
-			maskingUtil.processDataMasking(clients);
-		}
 		
 		EventSyncBean eventSyncBean = new EventSyncBean();
 		eventSyncBean.setClients(clients);
@@ -263,7 +198,6 @@ public class MhealthEventResource extends RestResource<Event> {
 		String district = getStringFilter("district", request);
 		String division = getStringFilter("division", request);
 		String branch = getStringFilter("branch", request);
-		System.err.println("district:" + district + ",division:" + division + ",branch:" + branch);
 		Map<String, Object> response = new HashMap<String, Object>();
 		try {
 			JSONObject syncData = new JSONObject(data);
@@ -276,7 +210,6 @@ public class MhealthEventResource extends RestResource<Event> {
 				    new TypeToken<ArrayList<Client>>() {}.getType());
 				for (Client client : clients) {
 					try {
-						System.out.println(client);
 						mhealthClientService.addOrUpdate(client, district, division, branch);
 					}
 					catch (Exception e) {
@@ -293,8 +226,6 @@ public class MhealthEventResource extends RestResource<Event> {
 				    new TypeToken<ArrayList<Event>>() {}.getType());
 				for (Event event : events) {
 					try {
-						//event = eventService.processOutOfArea(event);
-						
 						mhealthEventService.addorUpdateEvent(event, RestUtils.currentUser(authentication).getUsername(),
 						    district, division, branch);
 					}
@@ -327,35 +258,6 @@ public class MhealthEventResource extends RestResource<Event> {
 			response.put("failed_clients", clientsArray);
 			return new ResponseEntity<>(gson.toJson(response), CREATED);
 		}
-	}
-	
-	@Override
-	public Event create(Event o) {
-		throw new IllegalStateException();
-	}
-	
-	@Override
-	public List<String> requiredProperties() {
-		List<String> p = new ArrayList<>();
-		p.add(BASE_ENTITY_ID);
-		p.add(EVENT_TYPE);
-		p.add(PROVIDER_ID);
-		return p;
-	}
-	
-	@Override
-	public Event update(Event entity) {
-		throw new IllegalStateException();
-	}
-	
-	@Override
-	public List<Event> search(HttpServletRequest request) throws ParseException {
-		throw new IllegalStateException();
-	}
-	
-	@Override
-	public List<Event> filter(String query) {
-		throw new IllegalStateException();
 	}
 	
 }
