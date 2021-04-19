@@ -122,6 +122,45 @@ public class MhealthEventResourceTest extends BaseSecureResourceTest<Event> {
 	}
 	
 	@Test
+	public void testSaveWihtStatusBadRequestWithoutBranch() throws Exception {
+		Client client = createClient();
+		Event event = createEvent();
+		doReturn(client).when(mhealthClientService).addOrUpdate(any(Client.class), anyString(), anyString(), anyString());
+		doReturn(event).when(mhealthEventService).addorUpdateEvent(any(Event.class), anyString(), anyString(), anyString(),
+		    anyString());
+		
+		postRequestWithJsonContent(BASE_URL + "/add?district=12&division=123", ADD_REQUEST_EMPTY_PAYLOAD,
+		    status().isBadRequest());
+		
+	}
+	
+	@Test
+	public void testSaveWihtStatusBadRequestWithoutDivision() throws Exception {
+		Client client = createClient();
+		Event event = createEvent();
+		doReturn(client).when(mhealthClientService).addOrUpdate(any(Client.class), anyString(), anyString(), anyString());
+		doReturn(event).when(mhealthEventService).addorUpdateEvent(any(Event.class), anyString(), anyString(), anyString(),
+		    anyString());
+		
+		postRequestWithJsonContent(BASE_URL + "/add?district=12&branch=2", ADD_REQUEST_EMPTY_PAYLOAD,
+		    status().isBadRequest());
+		
+	}
+	
+	@Test
+	public void testSaveWihtStatusBadRequestWithoutDistrict() throws Exception {
+		Client client = createClient();
+		Event event = createEvent();
+		doReturn(client).when(mhealthClientService).addOrUpdate(any(Client.class), anyString(), anyString(), anyString());
+		doReturn(event).when(mhealthEventService).addorUpdateEvent(any(Event.class), anyString(), anyString(), anyString(),
+		    anyString());
+		
+		postRequestWithJsonContent(BASE_URL + "/add?division=123&branch=2", ADD_REQUEST_EMPTY_PAYLOAD,
+		    status().isBadRequest());
+		
+	}
+	
+	@Test
 	public void testSaveThrowsExceptionFromClientService() throws Exception {
 		Event event = createEvent();
 		doThrow(new IllegalArgumentException()).when(mhealthClientService).addOrUpdate(any(Client.class), anyString(),
@@ -204,6 +243,24 @@ public class MhealthEventResourceTest extends BaseSecureResourceTest<Event> {
 		assertEquals(actualObj.size(), 4);
 		assertEquals(actualObj.get("clients").size(), 1);
 		assertEquals(actualObj.get("events").size(), 1);
+	}
+	
+	@Test
+	public void testGetSyncStatusBadRequest() throws Exception {
+		List<Event> expectedEvents = new ArrayList<>();
+		expectedEvents.add(createEvent());
+		List<Client> expectedClients = new ArrayList<>();
+		expectedClients.add(createClient());
+		
+		doReturn(expectedEvents).when(mhealthEventService).findByProvider(any(long.class), anyString(), any(int.class),
+		    anyString());
+		doReturn(createClient()).when(mhealthClientService).findByBaseEntityId(anyString(), anyString());
+		doReturn(expectedClients).when(mhealthClientService).findByBaseEntityIds(anyList(), anyString());
+		
+		String parameter = PROVIDER_ID + "=providerId&" + SERVER_VERSIOIN
+		        + "=15421904649873&isEmptyToAdd=false&villageIds=1,27";
+		getResponseAsString(BASE_URL + "/sync", parameter, status().isBadRequest());
+		
 	}
 	
 	@Test

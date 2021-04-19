@@ -16,6 +16,7 @@ import java.util.Map;
 
 import javax.servlet.http.HttpServletRequest;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.joda.time.DateTime;
@@ -101,7 +102,10 @@ public class MhealthEventResource {
 			String serverVersion = getStringFilter(BaseEntity.SERVER_VERSIOIN, request);
 			Integer limit = getIntegerFilter("limit", request);
 			String district = getStringFilter("district", request);
-			
+			if (StringUtils.isBlank(district)) {
+				response.setMsg("Please set district");
+				return new ResponseEntity<>(BAD_REQUEST);
+			}
 			String postfix = "_" + district;
 			String villageIds = getStringFilter("villageIds", request);
 			String isEmptyToAdd = getStringFilter("isEmptyToAdd", request);
@@ -198,6 +202,9 @@ public class MhealthEventResource {
 		String district = getStringFilter("district", request);
 		String division = getStringFilter("division", request);
 		String branch = getStringFilter("branch", request);
+		if (StringUtils.isBlank(district) || StringUtils.isBlank(division) || StringUtils.isBlank(branch)) {
+			return new ResponseEntity<>(BAD_REQUEST);
+		}
 		Map<String, Object> response = new HashMap<String, Object>();
 		try {
 			JSONObject syncData = new JSONObject(data);

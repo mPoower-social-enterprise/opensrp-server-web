@@ -64,11 +64,11 @@ public class MhealthValidateResource {
 		Map<String, Object> response = new HashMap<String, Object>();
 		String district = getStringFilter("district", request);
 		String postfix = "_" + district;
-		
+		if (StringUtils.isBlank(district)) {
+			response.put("msg", "Please set district");
+			return new ResponseEntity<>(BAD_REQUEST);
+		}
 		try {
-			if (StringUtils.isBlank(data)) {
-				return new ResponseEntity<>(BAD_REQUEST);
-			}
 			JSONObject syncData = new JSONObject(data);
 			if (!syncData.has("clients") && !syncData.has("events")) {
 				return new ResponseEntity<>(BAD_REQUEST);
@@ -79,15 +79,9 @@ public class MhealthValidateResource {
 				List<String> clientIds = gson.fromJson(Utils.getStringFromJSON(syncData, "clients"),
 				    new TypeToken<ArrayList<String>>() {}.getType());
 				for (String clientId : clientIds) {
-					try {
-						
-						Long getClientId = mhealthClientService.findClientIdByBaseEntityId(clientId, postfix);
-						if (getClientId == null || getClientId == 0) {
-							missingClientIds.add(clientId);
-						}
-					}
-					catch (Exception e) {
-						logger.error("Client Sync Valiation Failed, BaseEntityId: " + clientId, e);
+					Long getClientId = mhealthClientService.findClientIdByBaseEntityId(clientId, postfix);
+					if (getClientId == null || getClientId == 0) {
+						missingClientIds.add(clientId);
 					}
 				}
 			}
@@ -97,16 +91,11 @@ public class MhealthValidateResource {
 				List<String> eventIds = gson.fromJson(Utils.getStringFromJSON(syncData, "events"),
 				    new TypeToken<ArrayList<String>>() {}.getType());
 				for (String eventId : eventIds) {
-					try {
-						Long getEventId = mhealthEventService.findEventIdByFormSubmissionId(eventId, postfix);
-						if (getEventId == null || getEventId == 0) {
-							missingEventIds.add(eventId);
-						}
-						
+					Long getEventId = mhealthEventService.findEventIdByFormSubmissionId(eventId, postfix);
+					if (getEventId == null || getEventId == 0) {
+						missingEventIds.add(eventId);
 					}
-					catch (Exception e) {
-						logger.error("Event Sync Valiation Failed, FormSubmissionId: " + eventId, e);
-					}
+					
 				}
 			}
 			
