@@ -205,6 +205,7 @@ public class MhealthEventResource {
 		if (StringUtils.isBlank(district) || StringUtils.isBlank(division) || StringUtils.isBlank(branch)) {
 			return new ResponseEntity<>(BAD_REQUEST);
 		}
+		String postfix = "_" + district;
 		Map<String, Object> response = new HashMap<String, Object>();
 		try {
 			JSONObject syncData = new JSONObject(data);
@@ -217,7 +218,7 @@ public class MhealthEventResource {
 				    new TypeToken<ArrayList<Client>>() {}.getType());
 				for (Client client : clients) {
 					try {
-						mhealthClientService.addOrUpdate(client, district, division, branch);
+						mhealthClientService.addOrUpdate(client, district, division, branch, postfix);
 					}
 					catch (Exception e) {
 						logger.error(
@@ -234,7 +235,7 @@ public class MhealthEventResource {
 				for (Event event : events) {
 					try {
 						mhealthEventService.addorUpdateEvent(event, RestUtils.currentUser(authentication).getUsername(),
-						    district, division, branch);
+						    district, division, branch, postfix);
 					}
 					catch (Exception e) {
 						logger.error(

@@ -93,17 +93,19 @@ public class MhealthEventResourceTest extends BaseSecureResourceTest<Event> {
 	public void testSaveWihtStatusOK() throws Exception {
 		Client client = createClient();
 		Event event = createEvent();
-		doReturn(client).when(mhealthClientService).addOrUpdate(any(Client.class), anyString(), anyString(), anyString());
-		doReturn(event).when(mhealthEventService).addorUpdateEvent(any(Event.class), anyString(), anyString(), anyString(),
+		doReturn(client).when(mhealthClientService).addOrUpdate(any(Client.class), anyString(), anyString(), anyString(),
 		    anyString());
+		doReturn(event).when(mhealthEventService).addorUpdateEvent(any(Event.class), anyString(), anyString(), anyString(),
+		    anyString(), anyString());
 		
 		postRequestWithJsonContent(BASE_URL + "/add?district=12&division=123&branch=2", ADD_REQUEST_PAYLOAD,
 		    status().isCreated());
-		verify(mhealthClientService).addOrUpdate(clientArgumentCaptor.capture(), anyString(), anyString(), anyString());
+		verify(mhealthClientService).addOrUpdate(clientArgumentCaptor.capture(), anyString(), anyString(), anyString(),
+		    anyString());
 		
 		assertEquals(clientArgumentCaptor.getValue().getFirstName(), "Test");
 		verify(mhealthEventService).addorUpdateEvent(eventArgumentCaptor.capture(), anyString(), anyString(), anyString(),
-		    anyString());
+		    anyString(), anyString());
 		
 		assertEquals(eventArgumentCaptor.getValue().getEventType(), "Family Member Registration");
 	}
@@ -112,9 +114,10 @@ public class MhealthEventResourceTest extends BaseSecureResourceTest<Event> {
 	public void testSaveWihtStatusBadRequest() throws Exception {
 		Client client = createClient();
 		Event event = createEvent();
-		doReturn(client).when(mhealthClientService).addOrUpdate(any(Client.class), anyString(), anyString(), anyString());
-		doReturn(event).when(mhealthEventService).addorUpdateEvent(any(Event.class), anyString(), anyString(), anyString(),
+		doReturn(client).when(mhealthClientService).addOrUpdate(any(Client.class), anyString(), anyString(), anyString(),
 		    anyString());
+		doReturn(event).when(mhealthEventService).addorUpdateEvent(any(Event.class), anyString(), anyString(), anyString(),
+		    anyString(), anyString());
 		
 		postRequestWithJsonContent(BASE_URL + "/add?district=12&division=123&branch=2", ADD_REQUEST_EMPTY_PAYLOAD,
 		    status().isBadRequest());
@@ -125,9 +128,10 @@ public class MhealthEventResourceTest extends BaseSecureResourceTest<Event> {
 	public void testSaveWihtStatusBadRequestWithoutBranch() throws Exception {
 		Client client = createClient();
 		Event event = createEvent();
-		doReturn(client).when(mhealthClientService).addOrUpdate(any(Client.class), anyString(), anyString(), anyString());
-		doReturn(event).when(mhealthEventService).addorUpdateEvent(any(Event.class), anyString(), anyString(), anyString(),
+		doReturn(client).when(mhealthClientService).addOrUpdate(any(Client.class), anyString(), anyString(), anyString(),
 		    anyString());
+		doReturn(event).when(mhealthEventService).addorUpdateEvent(any(Event.class), anyString(), anyString(), anyString(),
+		    anyString(), anyString());
 		
 		postRequestWithJsonContent(BASE_URL + "/add?district=12&division=123", ADD_REQUEST_EMPTY_PAYLOAD,
 		    status().isBadRequest());
@@ -138,9 +142,10 @@ public class MhealthEventResourceTest extends BaseSecureResourceTest<Event> {
 	public void testSaveWihtStatusBadRequestWithoutDivision() throws Exception {
 		Client client = createClient();
 		Event event = createEvent();
-		doReturn(client).when(mhealthClientService).addOrUpdate(any(Client.class), anyString(), anyString(), anyString());
-		doReturn(event).when(mhealthEventService).addorUpdateEvent(any(Event.class), anyString(), anyString(), anyString(),
+		doReturn(client).when(mhealthClientService).addOrUpdate(any(Client.class), anyString(), anyString(), anyString(),
 		    anyString());
+		doReturn(event).when(mhealthEventService).addorUpdateEvent(any(Event.class), anyString(), anyString(), anyString(),
+		    anyString(), anyString());
 		
 		postRequestWithJsonContent(BASE_URL + "/add?district=12&branch=2", ADD_REQUEST_EMPTY_PAYLOAD,
 		    status().isBadRequest());
@@ -151,9 +156,10 @@ public class MhealthEventResourceTest extends BaseSecureResourceTest<Event> {
 	public void testSaveWihtStatusBadRequestWithoutDistrict() throws Exception {
 		Client client = createClient();
 		Event event = createEvent();
-		doReturn(client).when(mhealthClientService).addOrUpdate(any(Client.class), anyString(), anyString(), anyString());
-		doReturn(event).when(mhealthEventService).addorUpdateEvent(any(Event.class), anyString(), anyString(), anyString(),
+		doReturn(client).when(mhealthClientService).addOrUpdate(any(Client.class), anyString(), anyString(), anyString(),
 		    anyString());
+		doReturn(event).when(mhealthEventService).addorUpdateEvent(any(Event.class), anyString(), anyString(), anyString(),
+		    anyString(), anyString());
 		
 		postRequestWithJsonContent(BASE_URL + "/add?division=123&branch=2", ADD_REQUEST_EMPTY_PAYLOAD,
 		    status().isBadRequest());
@@ -164,16 +170,17 @@ public class MhealthEventResourceTest extends BaseSecureResourceTest<Event> {
 	public void testSaveThrowsExceptionFromClientService() throws Exception {
 		Event event = createEvent();
 		doThrow(new IllegalArgumentException()).when(mhealthClientService).addOrUpdate(any(Client.class), anyString(),
-		    anyString(), anyString());
+		    anyString(), anyString(), anyString());
 		
 		doReturn(event).when(mhealthEventService).addorUpdateEvent(any(Event.class), anyString(), anyString(), anyString(),
-		    anyString());
+		    anyString(), anyString());
 		postRequestWithJsonContent(BASE_URL + "/add?district=12&division=123&branch=2", ADD_REQUEST_PAYLOAD,
 		    status().isCreated());
-		verify(mhealthClientService).addOrUpdate(clientArgumentCaptor.capture(), anyString(), anyString(), anyString());
+		verify(mhealthClientService).addOrUpdate(clientArgumentCaptor.capture(), anyString(), anyString(), anyString(),
+		    anyString());
 		assertEquals(clientArgumentCaptor.getValue().getFirstName(), "Test");
 		verify(mhealthEventService).addorUpdateEvent(eventArgumentCaptor.capture(), anyString(), anyString(), anyString(),
-		    anyString());
+		    anyString(), anyString());
 		assertEquals(eventArgumentCaptor.getValue().getEventType(), "Family Member Registration");
 	}
 	
@@ -181,16 +188,18 @@ public class MhealthEventResourceTest extends BaseSecureResourceTest<Event> {
 	public void testSaveThrowsExceptionFromEventService() throws Exception {
 		Client client = createClient();
 		
-		doReturn(client).when(mhealthClientService).addOrUpdate(any(Client.class), anyString(), anyString(), anyString());
+		doReturn(client).when(mhealthClientService).addOrUpdate(any(Client.class), anyString(), anyString(), anyString(),
+		    anyString());
 		
 		doThrow(new IllegalArgumentException()).when(mhealthEventService).addorUpdateEvent(any(Event.class), anyString(),
-		    anyString(), anyString(), anyString());
+		    anyString(), anyString(), anyString(), anyString());
 		postRequestWithJsonContent(BASE_URL + "/add?district=12&division=123&branch=2", ADD_REQUEST_PAYLOAD,
 		    status().isCreated());
-		verify(mhealthClientService).addOrUpdate(clientArgumentCaptor.capture(), anyString(), anyString(), anyString());
+		verify(mhealthClientService).addOrUpdate(clientArgumentCaptor.capture(), anyString(), anyString(), anyString(),
+		    anyString());
 		assertEquals(clientArgumentCaptor.getValue().getFirstName(), "Test");
 		verify(mhealthEventService).addorUpdateEvent(eventArgumentCaptor.capture(), anyString(), anyString(), anyString(),
-		    anyString());
+		    anyString(), anyString());
 		assertEquals(eventArgumentCaptor.getValue().getEventType(), "Family Member Registration");
 	}
 	
