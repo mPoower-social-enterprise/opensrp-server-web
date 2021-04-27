@@ -1,5 +1,7 @@
 package org.opensrp.web.controller;
 
+import static org.springframework.http.HttpStatus.OK;
+
 import java.util.List;
 
 import org.json.JSONArray;
@@ -45,6 +47,44 @@ public class MhealthUserController {
 		JSONArray practitionerLocationArray = practionerDetailsService.convertLocationTreeToJSON(practitionerLocations,
 		    practitionerDetails.getEnableSimPrint(), fullName);
 		return new ResponseEntity<>(practitionerLocationArray.toString(), RestUtils.getJSONUTF8Headers(), HttpStatus.OK);
+		
+	}
+	
+	@RequestMapping(value = "/deviceverify/get")
+	@ResponseBody
+	public ResponseEntity<String> verifyIMEI(@RequestParam("imei") String imei) {
+		
+		return new ResponseEntity<>(practionerDetailsService.checkUserMobileIMEI(imei).toString(), OK);
+	}
+	
+	@RequestMapping(value = "/user/status")
+	@ResponseBody
+	public ResponseEntity<String> userStatus(@RequestParam("username") String username,
+	                                         @RequestParam("version") String version) {
+		
+		practionerDetailsService.updateAppVersion(username, version);
+		
+		return new ResponseEntity<>(practionerDetailsService.getUserStatus(username) + "", OK);
+		
+	}
+	
+	@RequestMapping(value = "/user/app-version")
+	@ResponseBody
+	public ResponseEntity<String> updateAppVersion(@RequestParam("username") String username,
+	                                               @RequestParam("version") String version) {
+		
+		practionerDetailsService.updateAppVersion(username, version);
+		return new ResponseEntity<>("success", OK);
+		
+	}
+	
+	@RequestMapping(headers = { "Accept=application/json;charset=UTF-8" }, value = "/is_resync", method = RequestMethod.GET)
+	@ResponseBody
+	protected ResponseEntity<String> clientListToDeleteFromAPP(@RequestParam("username") String username)
+	    throws JSONException {
+		
+		String is_resync = practionerDetailsService.getForceSyncStatus(username);
+		return new ResponseEntity<>(is_resync, HttpStatus.OK);
 		
 	}
 }
