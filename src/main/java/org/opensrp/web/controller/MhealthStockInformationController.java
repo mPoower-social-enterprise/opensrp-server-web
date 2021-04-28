@@ -5,6 +5,8 @@ import java.util.List;
 import org.opensrp.domain.postgres.MhealthStockInformation;
 import org.opensrp.service.MhealthStockInformationService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
@@ -24,10 +26,11 @@ public class MhealthStockInformationController {
 	@RequestMapping(headers = {
 	        "Accept=application/json;charset=UTF-8" }, value = "/get_stock_info", method = RequestMethod.GET)
 	@ResponseBody
-	public List<MhealthStockInformation> getStockInfo(@RequestParam("username") String username,
-	                                                  @RequestParam("timestamp") Long timestamp) {
+	public ResponseEntity<List<MhealthStockInformation>> getStockInfo(@RequestParam("username") String username,
+	                                                                  @RequestParam("timestamp") Long timestamp) {
 		
-		return mhealthStockInformationService.getStockInformationByUsername(username, timestamp);
+		return new ResponseEntity<>(mhealthStockInformationService.getStockInformationByUsername(username, timestamp),
+		        HttpStatus.OK);
 	}
 	
 }

@@ -5,6 +5,8 @@ import java.util.List;
 import org.opensrp.domain.postgres.WebNotification;
 import org.opensrp.service.WebNotificationService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
@@ -24,10 +26,12 @@ public class WebNotificationController {
 	@RequestMapping(headers = {
 	        "Accept=application/json;charset=UTF-8" }, value = "/get_web_notification", method = RequestMethod.GET)
 	@ResponseBody
-	public List<WebNotification> getWebNotification(@RequestParam("username") String username,
-	                                                @RequestParam("timestamp") Long timestamp) {
+	public ResponseEntity<List<WebNotification>> getWebNotification(@RequestParam("username") String username,
+	                                                                @RequestParam("timestamp") Long timestamp) {
+		System.out.println("OK:" + username);
+		return new ResponseEntity<>(webNotificationService.getWebNotificationsByUsername(username, timestamp),
+		        HttpStatus.OK);
 		
-		return webNotificationService.getWebNotificationsByUsername(username, timestamp);
 	}
 	
 }
