@@ -50,7 +50,7 @@ public class WebNotificationControllerTest extends BaseResourceTest<Practitioner
 	}
 	
 	@Test
-	public void testGetPractitionerLocationTreeWihtStatusOK() throws Exception {
+	public void testGetWebNotificationWihtStatusOK() throws Exception {
 		
 		when(webNotificationService.getWebNotificationsByUsername("p1", 0l)).thenReturn(createWebNotifications());
 		String actualResult = getResponseAsString(BASE_URL + "/?username=p1&timestamp=0", null,
@@ -59,6 +59,13 @@ public class WebNotificationControllerTest extends BaseResourceTest<Practitioner
 		    longArgumentCaptor.capture());
 		assertEquals(stringArgumentCaptor.getAllValues().get(0), "p1");
 		assertEquals(expectedString, actualResult);
+	}
+	
+	@Test
+	public void testGetWebNotificationWihtStatusBadRequest() throws Exception {
+		when(webNotificationService.getWebNotificationsByUsername("p1", 0l)).thenReturn(createWebNotifications());
+		getResponseAsString(BASE_URL + "/?usernames=p1&timestamp=0", null, MockMvcResultMatchers.status().isBadRequest());
+		
 	}
 	
 	private List<WebNotification> createWebNotifications() {

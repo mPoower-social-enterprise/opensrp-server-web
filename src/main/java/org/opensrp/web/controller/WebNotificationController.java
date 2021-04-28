@@ -28,7 +28,6 @@ public class WebNotificationController {
 	@ResponseBody
 	public ResponseEntity<List<WebNotification>> getWebNotification(@RequestParam("username") String username,
 	                                                                @RequestParam("timestamp") Long timestamp) {
-		System.out.println("OK:" + username);
 		return new ResponseEntity<>(webNotificationService.getWebNotificationsByUsername(username, timestamp),
 		        HttpStatus.OK);
 		
