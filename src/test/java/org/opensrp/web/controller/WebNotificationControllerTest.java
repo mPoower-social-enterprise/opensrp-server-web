@@ -14,7 +14,6 @@ import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.MockitoAnnotations;
-import org.opensrp.domain.PractitionerLocation;
 import org.opensrp.domain.postgres.WebNotification;
 import org.opensrp.service.WebNotificationService;
 import org.opensrp.web.config.security.filter.CrossSiteScriptingPreventionFilter;
@@ -23,7 +22,7 @@ import org.springframework.test.web.server.MockMvc;
 import org.springframework.test.web.server.result.MockMvcResultMatchers;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
-public class WebNotificationControllerTest extends BaseResourceTest<PractitionerLocation> {
+public class WebNotificationControllerTest extends BaseResourceTest<WebNotification> {
 	
 	private final static String BASE_URL = "/get_web_notification/";
 	
@@ -50,7 +49,7 @@ public class WebNotificationControllerTest extends BaseResourceTest<Practitioner
 	}
 	
 	@Test
-	public void testGetWebNotificationWihtStatusOK() throws Exception {
+	public void testGetWebNotificationWithStatusOK() throws Exception {
 		
 		when(webNotificationService.getWebNotificationsByUsername("p1", 0l)).thenReturn(createWebNotifications());
 		String actualResult = getResponseAsString(BASE_URL + "/?username=p1&timestamp=0", null,
@@ -62,7 +61,7 @@ public class WebNotificationControllerTest extends BaseResourceTest<Practitioner
 	}
 	
 	@Test
-	public void testGetWebNotificationWihtStatusBadRequest() throws Exception {
+	public void testGetWebNotificationWithStatusBadRequest() throws Exception {
 		when(webNotificationService.getWebNotificationsByUsername("p1", 0l)).thenReturn(createWebNotifications());
 		getResponseAsString(BASE_URL + "/?usernames=p1&timestamp=0", null, MockMvcResultMatchers.status().isBadRequest());
 		
@@ -84,8 +83,7 @@ public class WebNotificationControllerTest extends BaseResourceTest<Practitioner
 	}
 	
 	@Override
-	protected void assertListsAreSameIgnoringOrder(List<PractitionerLocation> expectedList,
-	                                               List<PractitionerLocation> actualList) {
+	protected void assertListsAreSameIgnoringOrder(List<WebNotification> expectedList, List<WebNotification> actualList) {
 		
 	}
 	
