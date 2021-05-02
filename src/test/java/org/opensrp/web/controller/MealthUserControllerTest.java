@@ -15,7 +15,9 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatchers;
+import org.mockito.Captor;
 import org.mockito.MockitoAnnotations;
 import org.opensrp.domain.PractitionerLocation;
 import org.opensrp.domain.postgres.PractitionerDetails;
@@ -30,6 +32,9 @@ public class MealthUserControllerTest extends BaseResourceTest<PractitionerLocat
 	private final static String BASE_URL = "/provider/location-tree/";
 	
 	private PractionerDetailsService practionerDetailsService;
+	
+	@Captor
+	private ArgumentCaptor<String> stringArgumentCaptor = ArgumentCaptor.forClass(String.class);
 	
 	@Before
 	public void setUp() {
@@ -120,6 +125,101 @@ public class MealthUserControllerTest extends BaseResourceTest<PractitionerLocat
 		verifyNoMoreInteractions(practionerDetailsService);
 		getResponseAsString(BASE_URL + "/?username=dd", null, MockMvcResultMatchers.status().isInternalServerError());
 		
+	}
+	
+	@Test
+	public void testGetForceSyncStatusYesWithStatusOK() throws Exception {
+		when(practionerDetailsService.getForceSyncStatus("p1")).thenReturn("yes");
+		String actualResult = getResponseAsString("/is_resync/?username=p1", null, MockMvcResultMatchers.status().isOk());
+		verify(practionerDetailsService).getForceSyncStatus(stringArgumentCaptor.capture());
+		assertEquals(stringArgumentCaptor.getAllValues().get(0), "p1");
+		assertEquals("yes", actualResult);
+	}
+	
+	@Test
+	public void testGetForceSyncStatusWithStatusBadRequest() throws Exception {
+		when(practionerDetailsService.getForceSyncStatus("p1")).thenReturn("");
+		getResponseAsString("/is_resync/", null, MockMvcResultMatchers.status().isBadRequest());
+		
+	}
+	
+	@Test
+	public void testVerifyIMEITrueStatusOK() throws Exception {
+		when(practionerDetailsService.checkUserMobileIMEI("12345")).thenReturn(true);
+		String actualResult = getResponseAsString("/deviceverify/get/?imei=12345", null,
+		    MockMvcResultMatchers.status().isOk());
+		verify(practionerDetailsService).checkUserMobileIMEI(stringArgumentCaptor.capture());
+		assertEquals(stringArgumentCaptor.getAllValues().get(0), "12345");
+		assertEquals("true", actualResult);
+	}
+	
+	@Test
+	public void testVerifyIMEIFalseStatusOK() throws Exception {
+		when(practionerDetailsService.checkUserMobileIMEI("12345")).thenReturn(false);
+		String actualResult = getResponseAsString("/deviceverify/get/?imei=12345", null,
+		    MockMvcResultMatchers.status().isOk());
+		verify(practionerDetailsService).checkUserMobileIMEI(stringArgumentCaptor.capture());
+		assertEquals(stringArgumentCaptor.getAllValues().get(0), "12345");
+		assertEquals("false", actualResult);
+	}
+	
+	@Test
+	public void testVerifyIMEIFalseStatusBadRequest() throws Exception {
+		when(practionerDetailsService.checkUserMobileIMEI("12345")).thenReturn(true);
+		getResponseAsString("/deviceverify/get/", null, MockMvcResultMatchers.status().isBadRequest());
+		
+	}
+	
+	@Test
+	public void testUpdateAppVersionshouldReturnOneStatusOK() throws Exception {
+		when(practionerDetailsService.updateAppVersion("p1", "2.3")).thenReturn(1);
+		String actualResult = getResponseAsString("/update/app-version/?username=p1&version=2.3", null,
+		    MockMvcResultMatchers.status().isOk());
+		verify(practionerDetailsService).updateAppVersion(stringArgumentCaptor.capture(), stringArgumentCaptor.capture());
+		assertEquals(stringArgumentCaptor.getAllValues().get(0), "p1");
+		assertEquals("success", actualResult);
+	}
+	
+	@Test
+	public void testUpdateAppVersionshouldReturnZeroStatusOK() throws Exception {
+		when(practionerDetailsService.updateAppVersion("p1", "2.3")).thenReturn(0);
+		String actualResult = getResponseAsString("/update/app-version/?username=p1&version=2.3", null,
+		    MockMvcResultMatchers.status().isOk());
+		verify(practionerDetailsService).updateAppVersion(stringArgumentCaptor.capture(), stringArgumentCaptor.capture());
+		assertEquals(stringArgumentCaptor.getAllValues().get(0), "p1");
+		assertEquals("fail", actualResult);
+	}
+	
+	@Test
+	public void testUpdateAppVersionshouldStatusBadRequest() throws Exception {
+		when(practionerDetailsService.updateAppVersion("p1", "2.3")).thenReturn(1);
+		getResponseAsString("/update/app-version/?username=p1", null, MockMvcResultMatchers.status().isBadRequest());
+	}
+	
+	@Test
+	public void testGetUserStatusAndUpdateAppVersionStatusOK() throws Exception {
+		when(practionerDetailsService.updateAppVersion("p1", "2.3")).thenReturn(1);
+		when(practionerDetailsService.getUserStatus("p1")).thenReturn(true);
+		String actualResult = getResponseAsString("/user/status/?username=p1&version=2.3", null,
+		    MockMvcResultMatchers.status().isOk());
+		verify(practionerDetailsService).updateAppVersion(stringArgumentCaptor.capture(), stringArgumentCaptor.capture());
+		assertEquals(stringArgumentCaptor.getAllValues().get(0), "p1");
+		verify(practionerDetailsService).getUserStatus(stringArgumentCaptor.capture());
+		assertEquals(stringArgumentCaptor.getAllValues().get(0), "p1");
+		assertEquals("true", actualResult);
+	}
+	
+	@Test
+	public void testGetUserStatusAndUpdateAppVersionReturnFalseStatusOK() throws Exception {
+		when(practionerDetailsService.updateAppVersion("p1", "2.3")).thenReturn(1);
+		when(practionerDetailsService.getUserStatus("p1")).thenReturn(false);
+		String actualResult = getResponseAsString("/user/status/?username=p1&version=2.3", null,
+		    MockMvcResultMatchers.status().isOk());
+		verify(practionerDetailsService).updateAppVersion(stringArgumentCaptor.capture(), stringArgumentCaptor.capture());
+		assertEquals(stringArgumentCaptor.getAllValues().get(0), "p1");
+		verify(practionerDetailsService).getUserStatus(stringArgumentCaptor.capture());
+		assertEquals(stringArgumentCaptor.getAllValues().get(0), "p1");
+		assertEquals("false", actualResult);
 	}
 	
 	private PractitionerDetails createPractitionerDetailsData() {

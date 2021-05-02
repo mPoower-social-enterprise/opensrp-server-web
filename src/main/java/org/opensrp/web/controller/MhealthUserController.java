@@ -53,35 +53,34 @@ public class MhealthUserController {
 	@RequestMapping(value = "/deviceverify/get")
 	@ResponseBody
 	public ResponseEntity<String> verifyIMEI(@RequestParam("imei") String imei) {
-		
 		return new ResponseEntity<>(practionerDetailsService.checkUserMobileIMEI(imei).toString(), OK);
 	}
 	
 	@RequestMapping(value = "/user/status")
 	@ResponseBody
-	public ResponseEntity<String> userStatus(@RequestParam("username") String username,
-	                                         @RequestParam("version") String version) {
+	public ResponseEntity<String> getUserStatusAndUpdateAppVersion(@RequestParam("username") String username,
+	                                                               @RequestParam("version") String version) {
 		
 		practionerDetailsService.updateAppVersion(username, version);
-		
-		return new ResponseEntity<>(practionerDetailsService.getUserStatus(username) + "", OK);
+		Boolean getStatus = practionerDetailsService.getUserStatus(username);
+		String status = (getStatus.booleanValue() == true) ? "true" : "false";
+		return new ResponseEntity<>(status, OK);
 		
 	}
 	
-	@RequestMapping(value = "/user/app-version")
+	@RequestMapping(value = "/update/app-version")
 	@ResponseBody
 	public ResponseEntity<String> updateAppVersion(@RequestParam("username") String username,
 	                                               @RequestParam("version") String version) {
-		
-		practionerDetailsService.updateAppVersion(username, version);
-		return new ResponseEntity<>("success", OK);
+		int getStatus = practionerDetailsService.updateAppVersion(username, version);
+		String status = (getStatus == 1) ? "success" : "fail";
+		return new ResponseEntity<>(status, OK);
 		
 	}
 	
 	@RequestMapping(headers = { "Accept=application/json;charset=UTF-8" }, value = "/is_resync", method = RequestMethod.GET)
 	@ResponseBody
-	protected ResponseEntity<String> clientListToDeleteFromAPP(@RequestParam("username") String username)
-	    throws JSONException {
+	protected ResponseEntity<String> getForceSyncStatus(@RequestParam("username") String username) throws JSONException {
 		
 		String is_resync = practionerDetailsService.getForceSyncStatus(username);
 		return new ResponseEntity<>(is_resync, HttpStatus.OK);
