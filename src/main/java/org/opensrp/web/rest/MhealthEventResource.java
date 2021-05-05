@@ -16,15 +16,16 @@ import java.util.Map;
 
 import javax.servlet.http.HttpServletRequest;
 
-import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.joda.time.DateTime;
 import org.json.JSONObject;
 import org.opensrp.common.AllConstants.BaseEntity;
+import org.opensrp.domain.postgres.MhealthPractitionerLocation;
 import org.opensrp.search.EventSearchBean;
 import org.opensrp.service.MhealthClientService;
 import org.opensrp.service.MhealthEventService;
+import org.opensrp.service.PractitionerLocationService;
 import org.opensrp.web.bean.EventSyncBean;
 import org.opensrp.web.utils.Utils;
 import org.smartregister.domain.Client;
@@ -59,6 +60,8 @@ public class MhealthEventResource {
 	
 	private MhealthEventService mhealthEventService;
 	
+	private PractitionerLocationService practitionerLocationService;
+	
 	Gson gson = new GsonBuilder().setDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ")
 	        .registerTypeAdapter(DateTime.class, new DateTimeTypeConverter()).create();
 	
@@ -73,10 +76,12 @@ public class MhealthEventResource {
 	};
 	
 	@Autowired
-	public MhealthEventResource(MhealthClientService mhealthClientService, MhealthEventService mhealthEventService) {
+	public MhealthEventResource(MhealthClientService mhealthClientService, MhealthEventService mhealthEventService,
+	    PractitionerLocationService practitionerLocationService) {
 		
 		this.mhealthClientService = mhealthClientService;
 		this.mhealthEventService = mhealthEventService;
+		this.practitionerLocationService = practitionerLocationService;
 	}
 	
 	public void setMhealthClientService(MhealthClientService mhealthClientService) {
@@ -85,6 +90,10 @@ public class MhealthEventResource {
 	
 	public void setMhealthEventService(MhealthEventService mhealthEventService) {
 		this.mhealthEventService = mhealthEventService;
+	}
+	
+	public void setPractitionerLocationService(PractitionerLocationService practitionerLocationService) {
+		this.practitionerLocationService = practitionerLocationService;
 	}
 	
 	/**
@@ -102,14 +111,16 @@ public class MhealthEventResource {
 			String serverVersion = getStringFilter(BaseEntity.SERVER_VERSIOIN, request);
 			Integer limit = getIntegerFilter("limit", request);
 			String district = getStringFilter("district", request);
-			if (StringUtils.isBlank(district)) {
-				response.setMsg("Please set district");
-				return new ResponseEntity<>(BAD_REQUEST);
-			}
-			String postfix = "_" + district;
+			
 			String villageIds = getStringFilter("villageIds", request);
 			String isEmptyToAdd = getStringFilter("isEmptyToAdd", request);
+			MhealthPractitionerLocation location = practitionerLocationService.generatePostfixAndLocation(providerId,
+			    district, "", "");
 			
+			if (location == null) {
+				response.setMsg("location not found");
+				return new ResponseEntity<>(objectMapper.writeValueAsString(response), BAD_REQUEST);
+			}
 			if (org.apache.commons.lang3.StringUtils.isBlank(isEmptyToAdd)) {
 				isEmptyToAdd = "true";
 			}
@@ -119,19 +130,18 @@ public class MhealthEventResource {
 				for (String locId : villageIds.split(",")) {
 					villageIdsList.add(Long.valueOf(locId));
 				}
+			} else {
+				List<Integer> providerVillageIDs = practitionerLocationService.getPractitionerVillageIds(providerId);
+				for (Integer id : providerVillageIDs) {
+					villageIdsList.add(Long.valueOf(id));
+				}
 			}
 			
-			if (providerId != null || villageIdsList.size() != 0) {
-				
-				EventSyncBean eventSyncBean = sync(providerId, postfix, serverVersion, villageIdsList, limit, isEmptyToAdd);
-				
-				HttpHeaders headers = RestUtils.getJSONUTF8Headers();
-				return new ResponseEntity<>(objectMapper.writeValueAsString(eventSyncBean), headers, HttpStatus.OK);
-				
-			} else {
-				response.setMsg("specify atleast one filter");
-				return new ResponseEntity<>(objectMapper.writeValueAsString(response), BAD_REQUEST);
-			}
+			EventSyncBean eventSyncBean = sync(providerId, location.getPostFix(), serverVersion, villageIdsList, limit,
+			    isEmptyToAdd);
+			
+			HttpHeaders headers = RestUtils.getJSONUTF8Headers();
+			return new ResponseEntity<>(objectMapper.writeValueAsString(eventSyncBean), headers, HttpStatus.OK);
 			
 		}
 		catch (Exception e) {
@@ -165,6 +175,7 @@ public class MhealthEventResource {
 		List<String> clientIds = new ArrayList<String>();
 		List<Client> clients = new ArrayList<Client>();
 		long startTime = System.currentTimeMillis();
+		
 		if (isEmptyToAdd.equalsIgnoreCase("true")) {
 			events = mhealthEventService.findByVillageIds(providerId, villageIdsList, lastSyncedServerVersion, limit,
 			    postfix);
@@ -202,10 +213,10 @@ public class MhealthEventResource {
 		String district = getStringFilter("district", request);
 		String division = getStringFilter("division", request);
 		String branch = getStringFilter("branch", request);
-		if (StringUtils.isBlank(district) || StringUtils.isBlank(division) || StringUtils.isBlank(branch)) {
-			return new ResponseEntity<>(BAD_REQUEST);
-		}
-		String postfix = "_" + district;
+		String providerId = RestUtils.currentUser(authentication).getUsername();
+		MhealthPractitionerLocation location = practitionerLocationService.generatePostfixAndLocation(providerId, district,
+		    division, branch);
+		
 		Map<String, Object> response = new HashMap<String, Object>();
 		try {
 			JSONObject syncData = new JSONObject(data);
@@ -218,7 +229,7 @@ public class MhealthEventResource {
 				    new TypeToken<ArrayList<Client>>() {}.getType());
 				for (Client client : clients) {
 					try {
-						mhealthClientService.addOrUpdate(client, district, division, branch, postfix);
+						mhealthClientService.addOrUpdate(client, location);
 					}
 					catch (Exception e) {
 						logger.error(
@@ -235,7 +246,7 @@ public class MhealthEventResource {
 				for (Event event : events) {
 					try {
 						mhealthEventService.addorUpdateEvent(event, RestUtils.currentUser(authentication).getUsername(),
-						    district, division, branch, postfix);
+						    location);
 					}
 					catch (Exception e) {
 						logger.error(
@@ -248,9 +259,7 @@ public class MhealthEventResource {
 			}
 			
 		}
-		catch (
-		
-		Exception e) {
+		catch (Exception e) {
 			logger.error(format("Sync data processing failed with exception {0}.- ", e));
 			return new ResponseEntity<>(INTERNAL_SERVER_ERROR);
 		}

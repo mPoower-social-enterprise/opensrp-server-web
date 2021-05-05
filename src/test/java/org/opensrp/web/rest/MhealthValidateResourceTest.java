@@ -3,6 +3,7 @@ package org.opensrp.web.rest;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -13,8 +14,10 @@ import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.opensrp.domain.postgres.MhealthPractitionerLocation;
 import org.opensrp.service.MhealthClientService;
 import org.opensrp.service.MhealthEventService;
+import org.opensrp.service.PractitionerLocationService;
 import org.opensrp.web.config.security.filter.CrossSiteScriptingPreventionFilter;
 import org.opensrp.web.rest.it.TestWebContextLoader;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,6 +41,9 @@ public class MhealthValidateResourceTest {
 	
 	@Mock
 	private MhealthClientService mhealthClientService;
+	
+	@Mock
+	private PractitionerLocationService practitionerLocationService;
 	
 	@Mock
 	private MhealthEventService mhealthEventService;
@@ -64,14 +70,19 @@ public class MhealthValidateResourceTest {
 	public void testValidateSyncWithBlankData() throws Exception {
 		when(mhealthClientService.findClientIdByBaseEntityId(any(String.class), anyString())).thenReturn(createClientId());
 		when(mhealthEventService.findEventIdByFormSubmissionId(any(String.class), anyString())).thenReturn(createEventId());
-		mockMvc.perform(post(BASE_URL + "/sync?district=123").contentType(MediaType.APPLICATION_JSON).content("".getBytes()))
-		        .andExpect(status().isBadRequest()).andReturn();
+		doReturn(generatePostfixAndLocation()).when(practitionerLocationService).generatePostfixAndLocation(anyString(),
+		    anyString(), anyString(), anyString());
+		
+		mockMvc.perform(post(BASE_URL + "/sync?district=123&providerId=providerId").contentType(MediaType.APPLICATION_JSON)
+		        .content("".getBytes())).andExpect(status().isBadRequest()).andReturn();
 	}
 	
 	@Test
 	public void testValidateSyncWithoutDistrict() throws Exception {
 		when(mhealthClientService.findClientIdByBaseEntityId(any(String.class), anyString())).thenReturn(createClientId());
 		when(mhealthEventService.findEventIdByFormSubmissionId(any(String.class), anyString())).thenReturn(createEventId());
+		doReturn(generatePostfixAndLocation()).when(practitionerLocationService).generatePostfixAndLocation(anyString(),
+		    anyString(), anyString(), anyString());
 		mockMvc.perform(post(BASE_URL + "/sync").contentType(MediaType.APPLICATION_JSON).content("".getBytes()))
 		        .andExpect(status().isBadRequest()).andReturn();
 	}
@@ -81,8 +92,11 @@ public class MhealthValidateResourceTest {
 		String expected = "{\"clients\":[\"1\",\"2\"],\"events\":[\"1\",\"2\"]}";
 		when(mhealthClientService.findClientIdByBaseEntityId(any(String.class), anyString())).thenReturn(null);
 		when(mhealthEventService.findEventIdByFormSubmissionId(any(String.class), anyString())).thenReturn(null);
-		MvcResult result = mockMvc.perform(post(BASE_URL + "/sync?district=123").contentType(MediaType.APPLICATION_JSON)
-		        .content(SYNC_REQUEST_PAYLOAD.getBytes())).andExpect(status().isOk()).andReturn();
+		doReturn(generatePostfixAndLocation()).when(practitionerLocationService).generatePostfixAndLocation(anyString(),
+		    anyString(), anyString(), anyString());
+		MvcResult result = mockMvc.perform(post(BASE_URL + "/sync?district=123&providerId=providerId")
+		        .contentType(MediaType.APPLICATION_JSON).content(SYNC_REQUEST_PAYLOAD.getBytes())).andExpect(status().isOk())
+		        .andReturn();
 		
 		assertEquals(result.getResponse().getContentAsString(), expected);
 	}
@@ -91,9 +105,10 @@ public class MhealthValidateResourceTest {
 	public void testValidateSyncWithWrongData() throws Exception {
 		when(mhealthClientService.findClientIdByBaseEntityId(any(String.class), anyString())).thenReturn(createClientId());
 		when(mhealthEventService.findEventIdByFormSubmissionId(any(String.class), anyString())).thenReturn(createEventId());
-		mockMvc.perform(
-		    post(BASE_URL + "/sync?district=123").contentType(MediaType.APPLICATION_JSON).content(INVALID_JSON.getBytes()))
-		        .andExpect(status().isInternalServerError()).andReturn();
+		doReturn(generatePostfixAndLocation()).when(practitionerLocationService).generatePostfixAndLocation(anyString(),
+		    anyString(), anyString(), anyString());
+		mockMvc.perform(post(BASE_URL + "/sync?district=123&providerId=providerId").contentType(MediaType.APPLICATION_JSON)
+		        .content(INVALID_JSON.getBytes())).andExpect(status().isInternalServerError()).andReturn();
 	}
 	
 	private Long createClientId() {
@@ -103,6 +118,15 @@ public class MhealthValidateResourceTest {
 	private Long createEventId() {
 		
 		return 345l;
+	}
+	
+	private MhealthPractitionerLocation generatePostfixAndLocation() {
+		MhealthPractitionerLocation location = new MhealthPractitionerLocation();
+		location.setBranch("2");
+		location.setDistrict("23");
+		location.setDivision("123");
+		location.setPostFix("_23");
+		return location;
 	}
 	
 }

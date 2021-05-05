@@ -1,6 +1,7 @@
 package org.opensrp.web.rest;
 
 import static java.text.MessageFormat.format;
+import static org.opensrp.common.AllConstants.Event.PROVIDER_ID;
 import static org.opensrp.web.rest.RestUtils.getStringFilter;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.web.bind.annotation.RequestMethod.POST;
@@ -12,13 +13,14 @@ import java.util.Map;
 
 import javax.servlet.http.HttpServletRequest;
 
-import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.joda.time.DateTime;
 import org.json.JSONObject;
+import org.opensrp.domain.postgres.MhealthPractitionerLocation;
 import org.opensrp.service.MhealthClientService;
 import org.opensrp.service.MhealthEventService;
+import org.opensrp.service.PractitionerLocationService;
 import org.opensrp.web.utils.Utils;
 import org.smartregister.utils.DateTimeTypeConverter;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -43,14 +45,18 @@ public class MhealthValidateResource {
 	
 	private MhealthEventService mhealthEventService;
 	
+	private PractitionerLocationService practitionerLocationService;
+	
 	private Gson gson = new GsonBuilder().setDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ")
 	        .registerTypeAdapter(DateTime.class, new DateTimeTypeConverter()).create();
 	
 	@Autowired
-	public MhealthValidateResource(MhealthClientService mhealthClientService, MhealthEventService mhealthEventService) {
+	public MhealthValidateResource(MhealthClientService mhealthClientService, MhealthEventService mhealthEventService,
+	    PractitionerLocationService practitionerLocationService) {
 		
 		this.mhealthClientService = mhealthClientService;
 		this.mhealthEventService = mhealthEventService;
+		this.practitionerLocationService = practitionerLocationService;
 	}
 	
 	/**
@@ -63,10 +69,11 @@ public class MhealthValidateResource {
 	public ResponseEntity<String> validateSync(@RequestBody String data, HttpServletRequest request) {
 		Map<String, Object> response = new HashMap<String, Object>();
 		String district = getStringFilter("district", request);
-		String postfix = "_" + district;
-		if (StringUtils.isBlank(district)) {
-			response.put("msg", "Please set district");
-			return new ResponseEntity<>(BAD_REQUEST);
+		String providerId = getStringFilter(PROVIDER_ID, request);
+		MhealthPractitionerLocation location = practitionerLocationService.generatePostfixAndLocation(providerId, district,
+		    "", "");
+		if (location == null) {
+			return new ResponseEntity<>("location not found", BAD_REQUEST);
 		}
 		try {
 			JSONObject syncData = new JSONObject(data);
@@ -79,7 +86,7 @@ public class MhealthValidateResource {
 				List<String> clientIds = gson.fromJson(Utils.getStringFromJSON(syncData, "clients"),
 				    new TypeToken<ArrayList<String>>() {}.getType());
 				for (String clientId : clientIds) {
-					Long getClientId = mhealthClientService.findClientIdByBaseEntityId(clientId, postfix);
+					Long getClientId = mhealthClientService.findClientIdByBaseEntityId(clientId, location.getPostFix());
 					if (getClientId == null || getClientId == 0) {
 						missingClientIds.add(clientId);
 					}
@@ -91,7 +98,7 @@ public class MhealthValidateResource {
 				List<String> eventIds = gson.fromJson(Utils.getStringFromJSON(syncData, "events"),
 				    new TypeToken<ArrayList<String>>() {}.getType());
 				for (String eventId : eventIds) {
-					Long getEventId = mhealthEventService.findEventIdByFormSubmissionId(eventId, postfix);
+					Long getEventId = mhealthEventService.findEventIdByFormSubmissionId(eventId, location.getPostFix());
 					if (getEventId == null || getEventId == 0) {
 						missingEventIds.add(eventId);
 					}

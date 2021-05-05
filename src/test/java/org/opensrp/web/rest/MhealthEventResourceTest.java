@@ -21,9 +21,11 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
+import org.opensrp.domain.postgres.MhealthPractitionerLocation;
 import org.opensrp.search.EventSearchBean;
 import org.opensrp.service.MhealthClientService;
 import org.opensrp.service.MhealthEventService;
+import org.opensrp.service.PractitionerLocationService;
 import org.smartregister.domain.Client;
 import org.smartregister.domain.Event;
 import org.smartregister.utils.DateTimeTypeConverter;
@@ -42,6 +44,8 @@ public class MhealthEventResourceTest extends BaseSecureResourceTest<Event> {
 	private MhealthEventService mhealthEventService;
 	
 	private MhealthClientService mhealthClientService;
+	
+	private PractitionerLocationService practitionerLocationService;
 	
 	@Captor
 	private ArgumentCaptor<String> stringArgumentCaptor = ArgumentCaptor.forClass(String.class);
@@ -81,11 +85,11 @@ public class MhealthEventResourceTest extends BaseSecureResourceTest<Event> {
 	public void setUp() {
 		mhealthEventService = mock(MhealthEventService.class);
 		mhealthClientService = mock(MhealthClientService.class);
-		
+		practitionerLocationService = mock(PractitionerLocationService.class);
 		mhealthEventResource = webApplicationContext.getBean(MhealthEventResource.class);
 		mhealthEventResource.setMhealthClientService(mhealthClientService);
 		mhealthEventResource.setMhealthEventService(mhealthEventService);
-		
+		mhealthEventResource.setPractitionerLocationService(practitionerLocationService);
 		mhealthEventResource.setObjectMapper(mapper);
 	}
 	
@@ -93,19 +97,20 @@ public class MhealthEventResourceTest extends BaseSecureResourceTest<Event> {
 	public void testSaveWihtStatusOK() throws Exception {
 		Client client = createClient();
 		Event event = createEvent();
-		doReturn(client).when(mhealthClientService).addOrUpdate(any(Client.class), anyString(), anyString(), anyString(),
-		    anyString());
-		doReturn(event).when(mhealthEventService).addorUpdateEvent(any(Event.class), anyString(), anyString(), anyString(),
-		    anyString(), anyString());
+		
+		doReturn(client).when(mhealthClientService).addOrUpdate(any(Client.class), any(MhealthPractitionerLocation.class));
+		doReturn(event).when(mhealthEventService).addorUpdateEvent(any(Event.class), anyString(),
+		    any(MhealthPractitionerLocation.class));
+		doReturn(generatePostfixAndLocation()).when(practitionerLocationService).generatePostfixAndLocation(anyString(),
+		    anyString(), anyString(), anyString());
 		
 		postRequestWithJsonContent(BASE_URL + "/add?district=12&division=123&branch=2", ADD_REQUEST_PAYLOAD,
 		    status().isCreated());
-		verify(mhealthClientService).addOrUpdate(clientArgumentCaptor.capture(), anyString(), anyString(), anyString(),
-		    anyString());
+		verify(mhealthClientService).addOrUpdate(clientArgumentCaptor.capture(), any(MhealthPractitionerLocation.class));
 		
 		assertEquals(clientArgumentCaptor.getValue().getFirstName(), "Test");
-		verify(mhealthEventService).addorUpdateEvent(eventArgumentCaptor.capture(), anyString(), anyString(), anyString(),
-		    anyString(), anyString());
+		verify(mhealthEventService).addorUpdateEvent(eventArgumentCaptor.capture(), anyString(),
+		    any(MhealthPractitionerLocation.class));
 		
 		assertEquals(eventArgumentCaptor.getValue().getEventType(), "Family Member Registration");
 	}
@@ -114,11 +119,11 @@ public class MhealthEventResourceTest extends BaseSecureResourceTest<Event> {
 	public void testSaveWihtStatusBadRequest() throws Exception {
 		Client client = createClient();
 		Event event = createEvent();
-		doReturn(client).when(mhealthClientService).addOrUpdate(any(Client.class), anyString(), anyString(), anyString(),
-		    anyString());
-		doReturn(event).when(mhealthEventService).addorUpdateEvent(any(Event.class), anyString(), anyString(), anyString(),
-		    anyString(), anyString());
-		
+		doReturn(client).when(mhealthClientService).addOrUpdate(any(Client.class), any(MhealthPractitionerLocation.class));
+		doReturn(event).when(mhealthEventService).addorUpdateEvent(any(Event.class), anyString(),
+		    any(MhealthPractitionerLocation.class));
+		doReturn(generatePostfixAndLocation()).when(practitionerLocationService).generatePostfixAndLocation(anyString(),
+		    anyString(), anyString(), anyString());
 		postRequestWithJsonContent(BASE_URL + "/add?district=12&division=123&branch=2", ADD_REQUEST_EMPTY_PAYLOAD,
 		    status().isBadRequest());
 		
@@ -128,11 +133,11 @@ public class MhealthEventResourceTest extends BaseSecureResourceTest<Event> {
 	public void testSaveWihtStatusBadRequestWithoutBranch() throws Exception {
 		Client client = createClient();
 		Event event = createEvent();
-		doReturn(client).when(mhealthClientService).addOrUpdate(any(Client.class), anyString(), anyString(), anyString(),
-		    anyString());
-		doReturn(event).when(mhealthEventService).addorUpdateEvent(any(Event.class), anyString(), anyString(), anyString(),
-		    anyString(), anyString());
-		
+		doReturn(client).when(mhealthClientService).addOrUpdate(any(Client.class), any(MhealthPractitionerLocation.class));
+		doReturn(event).when(mhealthEventService).addorUpdateEvent(any(Event.class), anyString(),
+		    any(MhealthPractitionerLocation.class));
+		doReturn(generatePostfixAndLocation()).when(practitionerLocationService).generatePostfixAndLocation(anyString(),
+		    anyString(), anyString(), anyString());
 		postRequestWithJsonContent(BASE_URL + "/add?district=12&division=123", ADD_REQUEST_EMPTY_PAYLOAD,
 		    status().isBadRequest());
 		
@@ -142,11 +147,11 @@ public class MhealthEventResourceTest extends BaseSecureResourceTest<Event> {
 	public void testSaveWihtStatusBadRequestWithoutDivision() throws Exception {
 		Client client = createClient();
 		Event event = createEvent();
-		doReturn(client).when(mhealthClientService).addOrUpdate(any(Client.class), anyString(), anyString(), anyString(),
-		    anyString());
-		doReturn(event).when(mhealthEventService).addorUpdateEvent(any(Event.class), anyString(), anyString(), anyString(),
-		    anyString(), anyString());
-		
+		doReturn(client).when(mhealthClientService).addOrUpdate(any(Client.class), any(MhealthPractitionerLocation.class));
+		doReturn(event).when(mhealthEventService).addorUpdateEvent(any(Event.class), anyString(),
+		    any(MhealthPractitionerLocation.class));
+		doReturn(generatePostfixAndLocation()).when(practitionerLocationService).generatePostfixAndLocation(anyString(),
+		    anyString(), anyString(), anyString());
 		postRequestWithJsonContent(BASE_URL + "/add?district=12&branch=2", ADD_REQUEST_EMPTY_PAYLOAD,
 		    status().isBadRequest());
 		
@@ -156,11 +161,11 @@ public class MhealthEventResourceTest extends BaseSecureResourceTest<Event> {
 	public void testSaveWihtStatusBadRequestWithoutDistrict() throws Exception {
 		Client client = createClient();
 		Event event = createEvent();
-		doReturn(client).when(mhealthClientService).addOrUpdate(any(Client.class), anyString(), anyString(), anyString(),
-		    anyString());
-		doReturn(event).when(mhealthEventService).addorUpdateEvent(any(Event.class), anyString(), anyString(), anyString(),
-		    anyString(), anyString());
-		
+		doReturn(client).when(mhealthClientService).addOrUpdate(any(Client.class), any(MhealthPractitionerLocation.class));
+		doReturn(event).when(mhealthEventService).addorUpdateEvent(any(Event.class), anyString(),
+		    any(MhealthPractitionerLocation.class));
+		doReturn(generatePostfixAndLocation()).when(practitionerLocationService).generatePostfixAndLocation(anyString(),
+		    anyString(), anyString(), anyString());
 		postRequestWithJsonContent(BASE_URL + "/add?division=123&branch=2", ADD_REQUEST_EMPTY_PAYLOAD,
 		    status().isBadRequest());
 		
@@ -169,18 +174,18 @@ public class MhealthEventResourceTest extends BaseSecureResourceTest<Event> {
 	@Test
 	public void testSaveThrowsExceptionFromClientService() throws Exception {
 		Event event = createEvent();
-		doThrow(new IllegalArgumentException()).when(mhealthClientService).addOrUpdate(any(Client.class), anyString(),
+		doThrow(new IllegalArgumentException()).when(mhealthClientService).addOrUpdate(any(Client.class),
+		    any(MhealthPractitionerLocation.class));
+		doReturn(generatePostfixAndLocation()).when(practitionerLocationService).generatePostfixAndLocation(anyString(),
 		    anyString(), anyString(), anyString());
-		
-		doReturn(event).when(mhealthEventService).addorUpdateEvent(any(Event.class), anyString(), anyString(), anyString(),
-		    anyString(), anyString());
+		doReturn(event).when(mhealthEventService).addorUpdateEvent(any(Event.class), anyString(),
+		    any(MhealthPractitionerLocation.class));
 		postRequestWithJsonContent(BASE_URL + "/add?district=12&division=123&branch=2", ADD_REQUEST_PAYLOAD,
 		    status().isCreated());
-		verify(mhealthClientService).addOrUpdate(clientArgumentCaptor.capture(), anyString(), anyString(), anyString(),
-		    anyString());
+		verify(mhealthClientService).addOrUpdate(clientArgumentCaptor.capture(), any(MhealthPractitionerLocation.class));
 		assertEquals(clientArgumentCaptor.getValue().getFirstName(), "Test");
-		verify(mhealthEventService).addorUpdateEvent(eventArgumentCaptor.capture(), anyString(), anyString(), anyString(),
-		    anyString(), anyString());
+		verify(mhealthEventService).addorUpdateEvent(eventArgumentCaptor.capture(), anyString(),
+		    any(MhealthPractitionerLocation.class));
 		assertEquals(eventArgumentCaptor.getValue().getEventType(), "Family Member Registration");
 	}
 	
@@ -188,18 +193,17 @@ public class MhealthEventResourceTest extends BaseSecureResourceTest<Event> {
 	public void testSaveThrowsExceptionFromEventService() throws Exception {
 		Client client = createClient();
 		
-		doReturn(client).when(mhealthClientService).addOrUpdate(any(Client.class), anyString(), anyString(), anyString(),
-		    anyString());
-		
+		doReturn(client).when(mhealthClientService).addOrUpdate(any(Client.class), any(MhealthPractitionerLocation.class));
+		doReturn(generatePostfixAndLocation()).when(practitionerLocationService).generatePostfixAndLocation(anyString(),
+		    anyString(), anyString(), anyString());
 		doThrow(new IllegalArgumentException()).when(mhealthEventService).addorUpdateEvent(any(Event.class), anyString(),
-		    anyString(), anyString(), anyString(), anyString());
+		    any(MhealthPractitionerLocation.class));
 		postRequestWithJsonContent(BASE_URL + "/add?district=12&division=123&branch=2", ADD_REQUEST_PAYLOAD,
 		    status().isCreated());
-		verify(mhealthClientService).addOrUpdate(clientArgumentCaptor.capture(), anyString(), anyString(), anyString(),
-		    anyString());
+		verify(mhealthClientService).addOrUpdate(clientArgumentCaptor.capture(), any(MhealthPractitionerLocation.class));
 		assertEquals(clientArgumentCaptor.getValue().getFirstName(), "Test");
-		verify(mhealthEventService).addorUpdateEvent(eventArgumentCaptor.capture(), anyString(), anyString(), anyString(),
-		    anyString(), anyString());
+		verify(mhealthEventService).addorUpdateEvent(eventArgumentCaptor.capture(), anyString(),
+		    any(MhealthPractitionerLocation.class));
 		assertEquals(eventArgumentCaptor.getValue().getEventType(), "Family Member Registration");
 	}
 	
@@ -215,8 +219,41 @@ public class MhealthEventResourceTest extends BaseSecureResourceTest<Event> {
 		doReturn(createClient()).when(mhealthClientService).findByBaseEntityId(anyString(), anyString());
 		doReturn(expectedClients).when(mhealthClientService).findByBaseEntityIds(anyList(), anyString());
 		
+		doReturn(generatePostfixAndLocation()).when(practitionerLocationService).generatePostfixAndLocation(anyString(),
+		    anyString(), anyString(), anyString());
+		doReturn(getVillageIds()).when(practitionerLocationService).getPractitionerVillageIds(anyString());
+		
 		String parameter = PROVIDER_ID + "=providerId&" + SERVER_VERSIOIN
 		        + "=15421904649873&isEmptyToAdd=true&villageIds=1,27&district=23";
+		String response = getResponseAsString(BASE_URL + "/sync", parameter, status().isOk());
+		JsonNode actualObj = mapper.readTree(response);
+		verify(mhealthEventService).findByVillageIds(stringArgumentCaptor.capture(), anyList(), longArgumentCaptor.capture(),
+		    integerArgumentCaptor.capture(), stringArgumentCaptor.capture());
+		assertEquals(integerArgumentCaptor.getValue(), new Integer(25));
+		assertEquals(stringArgumentCaptor.getAllValues().get(0), PROVIDER_ID);
+		assertEquals(stringArgumentCaptor.getAllValues().get(1), "_23");
+		assertEquals(actualObj.size(), 4);
+		assertEquals(actualObj.get("clients").size(), 1);
+		assertEquals(actualObj.get("events").size(), 1);
+	}
+	
+	@Test
+	public void testGetSyncByWithoutVillageIdsStatusOK() throws Exception {
+		List<Event> expectedEvents = new ArrayList<>();
+		expectedEvents.add(createEvent());
+		List<Client> expectedClients = new ArrayList<>();
+		expectedClients.add(createClient());
+		
+		doReturn(expectedEvents).when(mhealthEventService).findByVillageIds(anyString(), anyList(), any(long.class),
+		    any(int.class), anyString());
+		doReturn(createClient()).when(mhealthClientService).findByBaseEntityId(anyString(), anyString());
+		doReturn(expectedClients).when(mhealthClientService).findByBaseEntityIds(anyList(), anyString());
+		
+		doReturn(generatePostfixAndLocation()).when(practitionerLocationService).generatePostfixAndLocation(anyString(),
+		    anyString(), anyString(), anyString());
+		doReturn(getVillageIds()).when(practitionerLocationService).getPractitionerVillageIds(anyString());
+		
+		String parameter = PROVIDER_ID + "=providerId&" + SERVER_VERSIOIN + "=15421904649873&isEmptyToAdd=true&district=23";
 		String response = getResponseAsString(BASE_URL + "/sync", parameter, status().isOk());
 		JsonNode actualObj = mapper.readTree(response);
 		verify(mhealthEventService).findByVillageIds(stringArgumentCaptor.capture(), anyList(), longArgumentCaptor.capture(),
@@ -240,6 +277,10 @@ public class MhealthEventResourceTest extends BaseSecureResourceTest<Event> {
 		    anyString());
 		doReturn(createClient()).when(mhealthClientService).findByBaseEntityId(anyString(), anyString());
 		doReturn(expectedClients).when(mhealthClientService).findByBaseEntityIds(anyList(), anyString());
+		
+		doReturn(generatePostfixAndLocation()).when(practitionerLocationService).generatePostfixAndLocation(anyString(),
+		    anyString(), anyString(), anyString());
+		doReturn(getVillageIds()).when(practitionerLocationService).getPractitionerVillageIds(anyString());
 		
 		String parameter = PROVIDER_ID + "=providerId&" + SERVER_VERSIOIN
 		        + "=15421904649873&isEmptyToAdd=false&villageIds=1,27&district=23";
@@ -266,25 +307,11 @@ public class MhealthEventResourceTest extends BaseSecureResourceTest<Event> {
 		doReturn(createClient()).when(mhealthClientService).findByBaseEntityId(anyString(), anyString());
 		doReturn(expectedClients).when(mhealthClientService).findByBaseEntityIds(anyList(), anyString());
 		
-		String parameter = PROVIDER_ID + "=providerId&" + SERVER_VERSIOIN
-		        + "=15421904649873&isEmptyToAdd=false&villageIds=1,27";
-		getResponseAsString(BASE_URL + "/sync", parameter, status().isBadRequest());
+		doReturn(generatePostfixAndLocation()).when(practitionerLocationService).generatePostfixAndLocation(anyString(),
+		    anyString(), anyString(), anyString());
+		doReturn(getVillageIds()).when(practitionerLocationService).getPractitionerVillageIds(anyString());
 		
-	}
-	
-	@Test
-	public void testGetSyncWithStatusBadRequest() throws Exception {
-		List<Event> expectedEvents = new ArrayList<>();
-		expectedEvents.add(createEvent());
-		List<Client> expectedClients = new ArrayList<>();
-		expectedClients.add(createClient());
-		
-		doReturn(expectedEvents).when(mhealthEventService).findByVillageIds(anyString(), anyList(), any(long.class),
-		    any(int.class), anyString());
-		doReturn(createClient()).when(mhealthClientService).findByBaseEntityId(anyString(), anyString());
-		doReturn(expectedClients).when(mhealthClientService).findByBaseEntityIds(anyList(), anyString());
-		
-		String parameter = SERVER_VERSIOIN + "=15421904649873&isEmptyToAdd=true&district=23";
+		String parameter = SERVER_VERSIOIN + "=15421904649873&isEmptyToAdd=false";
 		getResponseAsString(BASE_URL + "/sync", parameter, status().isBadRequest());
 		
 	}
@@ -312,4 +339,19 @@ public class MhealthEventResourceTest extends BaseSecureResourceTest<Event> {
 		
 	}
 	
+	private MhealthPractitionerLocation generatePostfixAndLocation() {
+		MhealthPractitionerLocation location = new MhealthPractitionerLocation();
+		location.setBranch("2");
+		location.setDistrict("23");
+		location.setDivision("123");
+		location.setPostFix("_23");
+		return location;
+	}
+	
+	private List<Integer> getVillageIds() {
+		List<Integer> ids = new ArrayList<>();
+		ids.add(1);
+		ids.add(27);
+		return ids;
+	}
 }
