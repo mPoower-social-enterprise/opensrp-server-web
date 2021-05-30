@@ -2,7 +2,9 @@ package org.opensrp.web.controller;
 
 import static org.opensrp.web.rest.RestUtils.getIntegerFilter;
 import static org.opensrp.web.rest.RestUtils.getStringFilter;
+import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.CREATED;
+import static org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -34,6 +36,8 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
@@ -50,61 +54,95 @@ public class MhealthMigrationController {
 	
 	private MhealthClientService mhealthClientService;
 	
+	protected ObjectMapper objectMapper;
+	
 	Gson gson = new GsonBuilder().setDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ")
 	        .registerTypeAdapter(DateTime.class, new DateTimeTypeConverter()).create();
 	
 	@Autowired
-	public void setWebNotificationService(MhealthMigrationService mhealthMigrationService,
-	                                      MhealthEventService mhealthEventService, MhealthClientService mhealthClientService,
-	                                      PractitionerLocationService practitionerLocationService) {
+	public MhealthMigrationController(MhealthMigrationService mhealthMigrationService,
+	    MhealthEventService mhealthEventService, MhealthClientService mhealthClientService,
+	    PractitionerLocationService practitionerLocationService) {
 		this.mhealthMigrationService = mhealthMigrationService;
 		this.mhealthEventService = mhealthEventService;
 		this.mhealthClientService = mhealthClientService;
 		this.practitionerLocationService = practitionerLocationService;
 	}
 	
+	@Autowired
+	public void setObjectMapper(ObjectMapper objectMapper) {
+		this.objectMapper = objectMapper;
+	};
+	
+	public void setMhealthMigrationService(MhealthMigrationService mhealthMigrationService) {
+		this.mhealthMigrationService = mhealthMigrationService;
+	}
+	
+	public void setMhealthEventService(MhealthEventService mhealthEventService) {
+		this.mhealthEventService = mhealthEventService;
+	}
+	
+	public void setPractitionerLocationService(PractitionerLocationService practitionerLocationService) {
+		this.practitionerLocationService = practitionerLocationService;
+	}
+	
+	public void setMhealthClientService(MhealthClientService mhealthClientService) {
+		this.mhealthClientService = mhealthClientService;
+	}
+	
 	@SuppressWarnings("unchecked")
 	@RequestMapping(headers = { "Accept=application/json;charset=UTF-8" }, method = RequestMethod.POST, value = "/migrate")
 	@ResponseBody
 	
-	public ResponseEntity<String> doMigrate(@RequestBody String data, HttpServletRequest request) throws JSONException {
+	public ResponseEntity<String> doMigrate(@RequestBody String data, HttpServletRequest request)
+	    throws JSONException, JsonProcessingException {
 		String district = getStringFilter("districtId", request);
 		String inProvider = request.getRemoteUser();
 		String division = getStringFilter("divisionId", request);
 		String branch = getStringFilter("branchId", request);
 		String type = getStringFilter("type", request);
-		JSONObject syncData = new JSONObject(data);
-		ArrayList<Client> clients = new ArrayList<Client>();
-		if (syncData.has("clients")) {
-			clients = (ArrayList<Client>) gson.fromJson(syncData.getString("clients"),
-			    new TypeToken<ArrayList<Client>>() {}.getType());
+		Client inclient = null;
+		try {
+			JSONObject syncData = new JSONObject(data);
+			ArrayList<Client> clients = new ArrayList<Client>();
+			if (syncData.has("clients")) {
+				clients = (ArrayList<Client>) gson.fromJson(syncData.getString("clients"),
+				    new TypeToken<ArrayList<Client>>() {}.getType());
+				inclient = clients.get(0);
+			}
+			if (inclient != null) {
+				MhealthPractitionerLocation outUserLocation = new MhealthPractitionerLocation();
+				outUserLocation.setBranch(branch);
+				outUserLocation.setDistrict(district);
+				outUserLocation.setDivision(division);
+				String postfix = "";
+				if (!StringUtils.isBlank(district)) {
+					postfix = "_" + district;
+				}
+				outUserLocation.setPostFix(postfix);
+				outUserLocation.setUsername(inProvider);
+				String baseEntityId = inclient.getBaseEntityId();
+				MhealthEventMetadata mhealthEventMetadata = mhealthEventService.findFirstEventMetadata(baseEntityId,
+				    outUserLocation.getPostFix());
+				MhealthMigration existingMigration = mhealthMigrationService.findFirstMigrationBybaseEntityId(baseEntityId);
+				String outProvider = "";
+				if (existingMigration != null) {
+					outProvider = existingMigration.getSKIn();
+				} else {
+					outProvider = mhealthEventMetadata.getProviderId();
+				}
+				MhealthPractitionerLocation inUserLocation = practitionerLocationService
+				        .generatePostfixAndLocation(outProvider, "", "", "");
+				
+				mhealthMigrationService.migrate(inclient, syncData, inUserLocation, outUserLocation, type);
+			} else {
+				return new ResponseEntity<>(objectMapper.writeValueAsString("bad request"), BAD_REQUEST);
+			}
 		}
-		Client inclient = clients.get(0);
-		MhealthPractitionerLocation outUserLocation = new MhealthPractitionerLocation();
-		outUserLocation.setBranch(branch);
-		outUserLocation.setDistrict(district);
-		outUserLocation.setDivision(division);
-		String postfix = "";
-		if (!StringUtils.isBlank(district)) {
-			postfix = "_" + district;
+		catch (Exception e) {
+			return new ResponseEntity<>(objectMapper.writeValueAsString(e.getMessage()), INTERNAL_SERVER_ERROR);
 		}
-		outUserLocation.setPostFix(postfix);
-		outUserLocation.setUsername(inProvider);
-		String baseEntityId = inclient.getBaseEntityId();
-		MhealthEventMetadata mhealthEventMetadata = mhealthEventService.findFirstEventMetadata(baseEntityId,
-		    outUserLocation.getPostFix());
-		MhealthMigration existingMigration = mhealthMigrationService.findFirstMigrationBybaseEntityId(baseEntityId);
-		String outProvider = "";
-		if (existingMigration != null) {
-			outProvider = existingMigration.getSKIn();
-		} else {
-			outProvider = mhealthEventMetadata.getProviderId();
-		}
-		MhealthPractitionerLocation inUserLocation = practitionerLocationService.generatePostfixAndLocation(outProvider, "",
-		    "", "");
-		mhealthMigrationService.migrate(inclient, syncData, inUserLocation, outUserLocation, type);
-		
-		return new ResponseEntity<>("ok", CREATED);
+		return new ResponseEntity<>(objectMapper.writeValueAsString("ok"), CREATED);
 	}
 	
 	@RequestMapping(headers = {
