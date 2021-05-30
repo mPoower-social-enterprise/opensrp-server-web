@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.opensrp.domain.postgres.MhealthStockInformation;
 import org.opensrp.service.MhealthStockInformationService;
+import org.opensrp.web.rest.RestUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -30,7 +31,7 @@ public class MhealthStockInformationController {
 	                                                                  @RequestParam("timestamp") Long timestamp) {
 		
 		return new ResponseEntity<>(mhealthStockInformationService.getStockInformationByUsername(username, timestamp),
-		        HttpStatus.OK);
+		        RestUtils.getJSONUTF8Headers(), HttpStatus.OK);
 	}
 	
 }

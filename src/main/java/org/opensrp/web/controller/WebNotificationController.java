@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.opensrp.domain.postgres.WebNotification;
 import org.opensrp.service.WebNotificationService;
+import org.opensrp.web.rest.RestUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -29,7 +30,7 @@ public class WebNotificationController {
 	public ResponseEntity<List<WebNotification>> getWebNotification(@RequestParam("username") String username,
 	                                                                @RequestParam("timestamp") Long timestamp) {
 		return new ResponseEntity<>(webNotificationService.getWebNotificationsByUsername(username, timestamp),
-		        HttpStatus.OK);
+		        RestUtils.getJSONUTF8Headers(), HttpStatus.OK);
 		
 	}
 	

@@ -24,6 +24,8 @@ import org.opensrp.service.MhealthClientService;
 import org.opensrp.service.MhealthEventService;
 import org.opensrp.service.MhealthMigrationService;
 import org.opensrp.service.PractitionerLocationService;
+import org.opensrp.web.bean.EventSyncBean;
+import org.opensrp.web.rest.RestUtils;
 import org.smartregister.domain.Client;
 import org.smartregister.utils.DateTimeTypeConverter;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,7 +42,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.google.gson.JsonArray;
 import com.google.gson.reflect.TypeToken;
 
 @Controller
@@ -142,41 +143,58 @@ public class MhealthMigrationController {
 		catch (Exception e) {
 			return new ResponseEntity<>(objectMapper.writeValueAsString(e.getMessage()), INTERNAL_SERVER_ERROR);
 		}
-		return new ResponseEntity<>(objectMapper.writeValueAsString("ok"), CREATED);
+		return new ResponseEntity<>(objectMapper.writeValueAsString("ok"), RestUtils.getJSONUTF8Headers(), CREATED);
 	}
 	
 	@RequestMapping(headers = {
 	        "Accept=application/json;charset=UTF-8" }, method = RequestMethod.POST, value = "/accept-reject-migration")
-	public ResponseEntity<String> acceptRejectMigration(HttpServletRequest request) throws JSONException {
-		Long id = getIntegerFilter("id", request).longValue();
-		String relationalId = getStringFilter("relationalId", request);
-		String type = getStringFilter("type", request);
-		String status = getStringFilter("status", request);
-		mhealthMigrationService.acceptOrRejectMigration(id, relationalId, type, status);
-		return new ResponseEntity<>("OK", CREATED);
+	public ResponseEntity<String> acceptRejectMigration(HttpServletRequest request)
+	    throws JSONException, JsonProcessingException {
+		try {
+			long id = getIntegerFilter("id", request).longValue();
+			if (id == 0) {
+				return new ResponseEntity<>(objectMapper.writeValueAsString("bad request"), BAD_REQUEST);
+			}
+			String relationalId = getStringFilter("relationalId", request);
+			String type = getStringFilter("type", request);
+			String status = getStringFilter("status", request);
+			
+			mhealthMigrationService.acceptOrRejectMigration(id, relationalId, type, status);
+		}
+		catch (Exception e) {
+			return new ResponseEntity<>(objectMapper.writeValueAsString(e.getMessage()), INTERNAL_SERVER_ERROR);
+		}
+		return new ResponseEntity<>(objectMapper.writeValueAsString("OK"), RestUtils.getJSONUTF8Headers(), CREATED);
+		
 	}
 	
 	@RequestMapping(headers = {
 	        "Accept=application/json;charset=UTF-8" }, value = "/search-client", method = RequestMethod.GET)
 	@ResponseBody
-	protected ResponseEntity<String> searchClient(HttpServletRequest request) {
+	protected ResponseEntity<String> searchClient(HttpServletRequest request) throws JsonProcessingException {
 		Map<String, Object> response = new HashMap<String, Object>();
 		try {
 			Integer villageId = getIntegerFilter("villageId", request);
+			Integer districtId = getIntegerFilter("districtId", request);
 			String gender = getStringFilter("gender", request);
 			Integer startAge = getIntegerFilter("startAge", request);
 			Integer endAge = getIntegerFilter("endAge", request);
 			String type = getStringFilter("type", request);
-			
+			if (villageId == null || villageId == 0 || districtId == null || districtId == 0) {
+				return new ResponseEntity<>(objectMapper.writeValueAsString("bad request"), BAD_REQUEST);
+			}
+			String postfix = "_" + districtId;
 			List<Client> clients = mhealthClientService.searchClientForMigration(villageId, gender, startAge, endAge, type,
-			    type);
-			JsonArray clientsArray = (JsonArray) gson.toJsonTree(clients, new TypeToken<List<Client>>() {}.getType());
-			response.put("clients", clientsArray);
-			return new ResponseEntity<>(gson.toJson(response), HttpStatus.OK);
+			    postfix);
+			EventSyncBean eventSyncBean = new EventSyncBean();
+			eventSyncBean.setClients(clients);
+			return new ResponseEntity<>(objectMapper.writeValueAsString(eventSyncBean), RestUtils.getJSONUTF8Headers(),
+			        HttpStatus.OK);
+			
 		}
 		catch (Exception e) {
 			response.put("msg", "Error occurred");
-			return new ResponseEntity<>(new Gson().toJson(response), HttpStatus.INTERNAL_SERVER_ERROR);
+			return new ResponseEntity<>(objectMapper.writeValueAsString(response), HttpStatus.INTERNAL_SERVER_ERROR);
 			
 		}
 		
@@ -184,18 +202,24 @@ public class MhealthMigrationController {
 	
 	@RequestMapping(headers = { "Accept=application/json;charset=UTF-8" }, value = "/migrated", method = RequestMethod.GET)
 	@ResponseBody
-	public List<String> getMigratedList(@RequestParam("username") String provider, @RequestParam("type") String type,
-	                                    @RequestParam("timestamp") Long timestamp) {
-		
-		return mhealthMigrationService.getMigratedList(provider, type, timestamp + 1);
+	public ResponseEntity<String> getMigratedList(@RequestParam("username") String provider,
+	                                              @RequestParam("type") String type,
+	                                              @RequestParam("timestamp") Long timestamp)
+	    throws JsonProcessingException {
+		return new ResponseEntity<>(
+		        objectMapper.writeValueAsString(mhealthMigrationService.getMigratedList(provider, type, timestamp + 1)),
+		        RestUtils.getJSONUTF8Headers(), HttpStatus.OK);
 	}
 	
 	@RequestMapping(headers = { "Accept=application/json;charset=UTF-8" }, value = "/rejected", method = RequestMethod.GET)
 	@ResponseBody
-	public List<String> getRejectedList(@RequestParam("username") String provider, @RequestParam("type") String type,
-	                                    @RequestParam("timestamp") Long timestamp) {
-		
-		return mhealthMigrationService.getRejectedList(provider, type, timestamp + 1);
+	public ResponseEntity<String> getRejectedList(@RequestParam("username") String provider,
+	                                              @RequestParam("type") String type,
+	                                              @RequestParam("timestamp") Long timestamp)
+	    throws JsonProcessingException {
+		return new ResponseEntity<>(
+		        objectMapper.writeValueAsString(mhealthMigrationService.getRejectedList(provider, type, timestamp + 1)),
+		        RestUtils.getJSONUTF8Headers(), HttpStatus.OK);
 	}
 	
 }
