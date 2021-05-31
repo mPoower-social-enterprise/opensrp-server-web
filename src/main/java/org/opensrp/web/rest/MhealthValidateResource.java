@@ -1,6 +1,8 @@
 package org.opensrp.web.rest;
 
 import static java.text.MessageFormat.format;
+import static org.opensrp.common.AllConstants.Event.PROVIDER_ID;
+import static org.opensrp.web.rest.RestUtils.getStringFilter;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.web.bind.annotation.RequestMethod.POST;
 
@@ -9,16 +11,17 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.commons.lang3.StringUtils;
+import javax.servlet.http.HttpServletRequest;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.joda.time.DateTime;
 import org.json.JSONObject;
-import org.opensrp.service.ClientService;
-import org.opensrp.service.EventService;
+import org.opensrp.domain.postgres.MhealthPractitionerLocation;
+import org.opensrp.service.MhealthClientService;
+import org.opensrp.service.MhealthEventService;
+import org.opensrp.service.PractitionerLocationService;
 import org.opensrp.web.utils.Utils;
-import org.smartregister.domain.Client;
-import org.smartregister.domain.Event;
 import org.smartregister.utils.DateTimeTypeConverter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -33,22 +36,27 @@ import com.google.gson.JsonArray;
 import com.google.gson.reflect.TypeToken;
 
 @Controller
-@RequestMapping(value = "/rest/validate/")
-public class ValidateResource {
+@RequestMapping(value = "/rest/validate/mhealth")
+public class MhealthValidateResource {
 	
-	private static Logger logger = LogManager.getLogger(ValidateResource.class.toString());
+	private static Logger logger = LogManager.getLogger(MhealthValidateResource.class.toString());
 	
-	private ClientService clientService;
+	private MhealthClientService mhealthClientService;
 	
-	private EventService eventService;
+	private MhealthEventService mhealthEventService;
+	
+	private PractitionerLocationService practitionerLocationService;
 	
 	private Gson gson = new GsonBuilder().setDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ")
 	        .registerTypeAdapter(DateTime.class, new DateTimeTypeConverter()).create();
 	
 	@Autowired
-	public ValidateResource(ClientService clientService, EventService eventService) {
-		this.clientService = clientService;
-		this.eventService = eventService;
+	public MhealthValidateResource(MhealthClientService mhealthClientService, MhealthEventService mhealthEventService,
+	    PractitionerLocationService practitionerLocationService) {
+		
+		this.mhealthClientService = mhealthClientService;
+		this.mhealthEventService = mhealthEventService;
+		this.practitionerLocationService = practitionerLocationService;
 	}
 	
 	/**
@@ -58,13 +66,16 @@ public class ValidateResource {
 	 * @return
 	 */
 	@RequestMapping(headers = { "Accept=application/json" }, method = POST, value = "/sync")
-	public ResponseEntity<String> validateSync(@RequestBody String data) {
+	public ResponseEntity<String> validateSync(@RequestBody String data, HttpServletRequest request) {
 		Map<String, Object> response = new HashMap<String, Object>();
-		
+		String district = getStringFilter("district", request);
+		String providerId = getStringFilter(PROVIDER_ID, request);
+		MhealthPractitionerLocation location = practitionerLocationService.generatePostfixAndLocation(providerId, district,
+		    "", "");
+		if (location == null) {
+			return new ResponseEntity<>("location not found", BAD_REQUEST);
+		}
 		try {
-			if (StringUtils.isBlank(data)) {
-				return new ResponseEntity<>(BAD_REQUEST);
-			}
 			JSONObject syncData = new JSONObject(data);
 			if (!syncData.has("clients") && !syncData.has("events")) {
 				return new ResponseEntity<>(BAD_REQUEST);
@@ -75,14 +86,9 @@ public class ValidateResource {
 				List<String> clientIds = gson.fromJson(Utils.getStringFromJSON(syncData, "clients"),
 				    new TypeToken<ArrayList<String>>() {}.getType());
 				for (String clientId : clientIds) {
-					try {
-						Client client = clientService.getByBaseEntityId(clientId);
-						if (client == null) {
-							missingClientIds.add(clientId);
-						}
-					}
-					catch (Exception e) {
-						logger.error("Client Sync Valiation Failed, BaseEntityId: " + clientId, e);
+					Long getClientId = mhealthClientService.findClientIdByBaseEntityId(clientId, location.getPostFix());
+					if (getClientId == null || getClientId == 0) {
+						missingClientIds.add(clientId);
 					}
 				}
 			}
@@ -92,16 +98,11 @@ public class ValidateResource {
 				List<String> eventIds = gson.fromJson(Utils.getStringFromJSON(syncData, "events"),
 				    new TypeToken<ArrayList<String>>() {}.getType());
 				for (String eventId : eventIds) {
-					try {
-						Event event = eventService.findByFormSubmissionId(eventId);
-						if (event == null) {
-							missingEventIds.add(eventId);
-						}
-						
+					Long getEventId = mhealthEventService.findEventIdByFormSubmissionId(eventId, location.getPostFix());
+					if (getEventId == null || getEventId == 0) {
+						missingEventIds.add(eventId);
 					}
-					catch (Exception e) {
-						logger.error("Event Sync Valiation Failed, FormSubmissionId: " + eventId, e);
-					}
+					
 				}
 			}
 			
