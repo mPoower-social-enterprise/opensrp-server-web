@@ -10,7 +10,9 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.opensrp.domain.postgres.MhealthPractitionerLocation;
 import org.opensrp.service.PractitionerLocationService;
+import org.opensrp.web.rest.RestUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -24,6 +26,9 @@ public class MhealthLocationController {
 	
 	private PractitionerLocationService practitionerLocationService;
 	
+	@Value("#{opensrp['district.location.tag.id']}")
+	protected int districtLocationTagId;
+	
 	@Autowired
 	public void setPractitionerLocationService(PractitionerLocationService practitionerLocationService) {
 		this.practitionerLocationService = practitionerLocationService;
@@ -32,24 +37,27 @@ public class MhealthLocationController {
 	@RequestMapping(value = "/district-upazila", method = RequestMethod.GET)
 	@ResponseBody
 	public ResponseEntity<String> getDistrictAndUpazila(HttpServletRequest request) throws JSONException {
-		JSONArray districts = practitionerLocationService.getDistrictAndUpazila(29);
-		return new ResponseEntity<>(districts.toString(), OK);
+		JSONArray districts = practitionerLocationService.getDistrictAndUpazila(districtLocationTagId);
+		return new ResponseEntity<>(districts.toString(), RestUtils.getJSONUTF8Headers(), OK);
 	}
 	
 	@RequestMapping(headers = {
 	        "Accept=application/json;charset=UTF-8" }, value = "/district-list", method = RequestMethod.GET, produces = "application/json")
 	@ResponseBody
-	public List<MhealthPractitionerLocation> getDistrictList(HttpServletRequest request) throws JSONException {
-		
-		return practitionerLocationService.getLocationByTagId(29);
+	public ResponseEntity<List<MhealthPractitionerLocation>> getDistrictList(HttpServletRequest request)
+	    throws JSONException {
+		return new ResponseEntity<>(practitionerLocationService.getLocationByTagId(districtLocationTagId),
+		        RestUtils.getJSONUTF8Headers(), OK);
 	}
 	
 	@RequestMapping(headers = {
 	        "Accept=application/json;charset=UTF-8" }, value = "/child-location", method = RequestMethod.GET, produces = "application/json")
 	@ResponseBody
-	public List<MhealthPractitionerLocation> getChildLocation(@RequestParam("id") Integer id) throws JSONException {
+	public ResponseEntity<List<MhealthPractitionerLocation>> getChildLocation(@RequestParam("id") Integer id)
+	    throws JSONException {
+		return new ResponseEntity<>(practitionerLocationService.getLocationByParentId(id), RestUtils.getJSONUTF8Headers(),
+		        OK);
 		
-		return practitionerLocationService.getLocationByParentId(id);
 	}
 	
 }
